@@ -100,27 +100,26 @@ class AuthService {
       console.log(`✅ ${eleves?.length || 0} élèves récupérés depuis Airtable`);
       
       if (eleves && eleves.length > 0) {
-        console.log('🔍 Structure des données récupérées:');
+        console.log('🔍 Structure détaillée des données récupérées:');
         eleves.forEach((eleve: any, index: number) => {
-          console.log(`📋 Élève ${index + 1}:`, {
-            id: eleve.id,
-            hasFields: !!eleve.fields,
-            fieldsKeys: eleve.fields ? Object.keys(eleve.fields) : [],
-            directKeys: Object.keys(eleve),
-            // Affichage des valeurs de code possibles
-            codeField: eleve.fields?.code || eleve.code,
-            nameField: eleve.fields?.Nom || eleve.fields?.Name || eleve.Nom || eleve.Name
-          });
+          console.log(`📋 Élève ${index + 1} - ID: ${eleve.id}:`);
+          console.log('  - Fields disponibles:', eleve.fields ? Object.keys(eleve.fields) : 'Aucun');
+          console.log('  - Champ Code:', eleve.fields?.Code);
+          console.log('  - Champ code (minuscule):', eleve.fields?.code);
+          console.log('  - Nom:', eleve.fields?.Nom);
+          console.log('  - Tous les champs:', eleve.fields);
         });
 
         // Rechercher un élève avec le code d'accès correspondant
         const matchingEleve = eleves.find((eleve: any) => {
           console.log(`🔍 Vérification élève ${eleve.id}:`);
           
-          // Tester toutes les variantes possibles
+          // Tester toutes les variantes possibles, en priorité la colonne "Code"
           const possibleCodes = [
-            eleve.id,
-            eleve.fields?.code,
+            eleve.fields?.Code,        // 🎯 PRIORITÉ: Colonne "Code" d'Airtable
+            eleve.fields?.["Code"],    // 🎯 Variante avec crochets
+            eleve.id,                  // ID Airtable (fallback)
+            eleve.fields?.code,        // Variante minuscule
             eleve.fields?.["code"],
             eleve.fields?.AccessCode,
             eleve.fields?.["AccessCode"],
@@ -130,6 +129,7 @@ class AuthService {
           ];
           
           console.log('🔑 Codes possibles trouvés:', possibleCodes.filter(Boolean));
+          console.log('🔍 Détail des codes pour cet élève:', possibleCodes.map((code, index) => ({ index, code })));
           
           const isMatch = possibleCodes.some(code => code === accessCode);
           
@@ -183,7 +183,7 @@ class AuthService {
           console.log('🔑 Code recherché:', accessCode);
           console.log('🔍 Codes disponibles:', eleves.map((e: any) => ({
             id: e.id,
-            codeField: e.fields?.code || e.code,
+            codeField: e.fields?.Code || e.fields?.code || e.code,
             name: e.fields?.Nom || e.Nom
           })));
         }
