@@ -122,6 +122,11 @@ const AdminStudents = () => {
     }
   }, [searchTerm, students]);
 
+  const handleViewStudent = (studentData: StudentData) => {
+    // Naviguer vers le profil de l'élève avec son code d'accès
+    navigate('/profile', { state: { studentCode: studentData.code, isAdminView: true } });
+  };
+
   const getStatusBadge = (status: string = 'Actif') => {
     const statusConfig = {
       'Actif': { variant: 'default', color: 'bg-green-100 text-green-700 border-green-200' },
@@ -310,7 +315,11 @@ const AdminStudents = () => {
                           {studentData.objectives || '-'}
                         </TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleViewStudent(studentData)}
+                          >
                             <Eye className="h-3 w-3 mr-1" />
                             Voir
                           </Button>

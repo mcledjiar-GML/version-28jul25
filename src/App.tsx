@@ -15,6 +15,11 @@ import Ebooks from './pages/Ebooks'
 import AirtableConfig from './pages/AirtableConfig'
 import AdminStudents from './pages/admin/AdminStudents'
 import AdminStats from './pages/admin/AdminStats'
+import AdminNutritionalCalculations from './pages/admin/AdminNutritionalCalculations'
+import StudentStats from './pages/admin/StudentStats'
+import StudentCalculations from './pages/admin/StudentCalculations'
+import StudentWorkouts from './pages/admin/StudentWorkouts'
+import StudentNutrition from './pages/admin/StudentNutrition'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -34,6 +39,11 @@ function App() {
             <Route path="/airtable-config" element={<AirtableConfig />} />
             <Route path="/admin/students" element={<AdminStudents />} />
             <Route path="/admin/stats" element={<AdminStats />} />
+            <Route path="/admin/nutritional-calculations" element={<AdminNutritionalCalculations />} />
+            <Route path="/admin/student-stats" element={<StudentStats />} />
+            <Route path="/admin/student-calculations" element={<StudentCalculations />} />
+            <Route path="/admin/student-workouts" element={<StudentWorkouts />} />
+            <Route path="/admin/student-nutrition" element={<StudentNutrition />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AnimatePresence>

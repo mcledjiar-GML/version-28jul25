@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Activity, Target, Users, Search, TrendingUp, Zap, Utensils, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import AirtableService from '../../services/AirtableService';
+import { airtableService } from '../../services/airtable/airtableService';
 import { Student } from '../../services/types/airtable.types';
 
 const AdminNutritionalCalculations: React.FC = () => {
@@ -17,24 +17,7 @@ const AdminNutritionalCalculations: React.FC = () => {
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        // Mock data pour éviter les erreurs
-        const mockStudents: Student[] = [
-          {
-            id: '1',
-            name: 'Luna Lovegood',
-            prenom: 'Luna',
-            nom: 'Lovegood',
-            accessCode: 'recrqe0QzipRYDsjd',
-            email: 'luna@test.com',
-            age: 25,
-            sexe: 'Femme',
-            poids_actuel: 65,
-            taille: 170,
-            objectif_physique: 'Perte de poids',
-            profession: 'Étudiante'
-          }
-        ];
-        const allStudents = mockStudents;
+        const allStudents = await airtableService.getStudents();
         setStudents(allStudents);
         if (allStudents.length > 0) {
           setSelectedStudent(allStudents[0]);

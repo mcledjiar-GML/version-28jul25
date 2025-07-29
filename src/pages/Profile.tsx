@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStudent } from '../context/StudentContext';
 import Layout from '../components/Layout';
@@ -51,11 +51,16 @@ interface StudentProfile {
 const Profile = () => {
   const { student } = useStudent();
   const navigate = useNavigate();
+  const location = useLocation();
   const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [filteredProfiles, setFilteredProfiles] = useState<StudentProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStudentProfile, setSelectedStudentProfile] = useState<StudentProfile | null>(null);
+
+  // Récupérer les données de navigation (élève spécifique à afficher)
+  const { studentCode, isAdminView } = location.state || {};
 
   useEffect(() => {
     if (!student) {
@@ -66,9 +71,15 @@ const Profile = () => {
   // Charger les profils des élèves si admin
   useEffect(() => {
     if (student?.isAdmin) {
-      loadAllProfiles();
+      if (studentCode && isAdminView) {
+        // Charger le profil d'un élève spécifique
+        loadSpecificStudentProfile(studentCode);
+      } else {
+        // Charger tous les profils
+        loadAllProfiles();
+      }
     }
-  }, [student]);
+  }, [student, studentCode, isAdminView]);
 
   // Filtrer les profils selon la recherche
   useEffect(() => {
@@ -84,6 +95,60 @@ const Profile = () => {
       setFilteredProfiles(filtered);
     }
   }, [searchTerm, profiles]);
+
+  const loadSpecificStudentProfile = async (code: string) => {
+    try {
+      setIsLoading(true);
+      console.log('👤 Chargement du profil de l\'élève:', code);
+      
+      const airtableApi = (AirtableService as any).apiService;
+      const studentsData = await airtableApi.fetchAllRecords('Élèves');
+      
+      // Trouver l'élève avec le code spécifique
+      const targetStudent = studentsData.find((record: any) => {
+        const fields = record.fields || record;
+        return fields.code === code || record.id === code;
+      });
+
+      if (!targetStudent) {
+        setError('Élève introuvable');
+        return;
+      }
+
+      const fields = targetStudent.fields || targetStudent;
+      const studentProfile: StudentProfile = {
+        id: targetStudent.id,
+        name: fields.Nom || fields.Name || 'Nom non défini',
+        email: fields['E-mail'] || fields.Email || 'Email non défini',
+        age: fields['Âge'] || fields.Age || null,
+        gender: fields.Sexe || fields.Gender || null,
+        profession: fields.Profession || null,
+        birthDate: fields['Date de naissance'] || fields.BirthDate || null,
+        status: fields.Statut || fields.Status || 'Actif',
+        // Objectifs physiques
+        initialWeight: fields['Poids Initial'] || fields.InitialWeight || null,
+        targetWeight: fields['Poids Cible'] || fields.TargetWeight || null,
+        height: fields['Taille (cm)'] || fields.Height || null,
+        objectives: fields.Objectifs || fields.Objectives || '',
+        // Profil alimentaire
+        diet: fields['Régime Alimentaire'] || fields.Diet || null,
+        eatingHabits: fields['Habitudes Alimentaires Spécifiques'] || fields.EatingHabits || null,
+        mealFrequency: fields['Fréquence de Repas'] || fields.MealFrequency || null,
+        // Activité
+        activityLevel: fields['Niveau d\'Activité'] || fields.ActivityLevel || null,
+        medicalHistory: fields['Antécédents Médicaux & Sportifs'] || fields.MedicalHistory || null,
+        motivation: fields.Motivation || null,
+      };
+
+      setSelectedStudentProfile(studentProfile);
+      setError(null);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement du profil de l\'élève:', error);
+      setError('Impossible de charger le profil de l\'élève');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadAllProfiles = async () => {
     try {
@@ -122,6 +187,7 @@ const Profile = () => {
 
       setProfiles(transformedProfiles);
       setFilteredProfiles(transformedProfiles);
+      setSelectedStudentProfile(null);
       setError(null);
     } catch (error) {
       console.error('❌ Erreur lors du chargement des profils:', error);
@@ -324,6 +390,211 @@ const Profile = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Motivation</p>
                     <p className="font-medium">{student.motivation}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
+      </Layout>
+    );
+  }
+
+  // Vue admin avec élève spécifique : afficher le profil individuel
+  if (student?.isAdmin && selectedStudentProfile) {
+    return (
+      <Layout>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header avec boutons retour */}
+          <div className="flex items-center gap-4 mb-8">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/admin/students')}
+            >
+              ← Gestion des Élèves
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSelectedStudentProfile(null);
+                navigate('/profile');
+              }}
+            >
+              ← Tous les profils
+            </Button>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <User className="h-8 w-8 text-blue-500" />
+                <h1 className="text-3xl font-bold">Profil de {selectedStudentProfile.name}</h1>
+                <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Vue Admin
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                Consultation du profil et des objectifs de l'élève
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Informations Personnelles */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <User className="h-5 w-5 mr-2 text-blue-500" />
+                  Informations Personnelles
+                </CardTitle>
+                <Badge className={getStatusBadge(selectedStudentProfile.status || 'Actif')}>
+                  {selectedStudentProfile.status || 'Actif'}
+                </Badge>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-center">
+                  <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {selectedStudentProfile.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="space-y-4 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Nom</p>
+                    <p className="font-medium">{selectedStudentProfile.name}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium">{selectedStudentProfile.email}</p>
+                  </div>
+                  
+                  {selectedStudentProfile.age && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Âge</p>
+                      <p className="font-medium">{selectedStudentProfile.age} ans</p>
+                    </div>
+                  )}
+                  
+                  {selectedStudentProfile.gender && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Sexe</p>
+                      <p className="font-medium">{selectedStudentProfile.gender}</p>
+                    </div>
+                  )}
+                  
+                  {selectedStudentProfile.birthDate && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date de naissance</p>
+                      <p className="font-medium">{new Date(selectedStudentProfile.birthDate).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                  )}
+                  
+                  {selectedStudentProfile.profession && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Profession</p>
+                      <p className="font-medium">{selectedStudentProfile.profession}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Objectifs Physiques */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Target className="h-5 w-5 mr-2 text-blue-500" />
+                  Objectifs Physiques
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Poids initial</p>
+                    <p className="text-xl font-bold">{selectedStudentProfile.initialWeight ? `${selectedStudentProfile.initialWeight} kg` : '- kg'}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Poids cible</p>
+                    <p className="text-xl font-bold">{selectedStudentProfile.targetWeight ? `${selectedStudentProfile.targetWeight} kg` : '- kg'}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Taille</p>
+                    <p className="text-xl font-bold">{selectedStudentProfile.height ? `${selectedStudentProfile.height} cm` : '- cm'}</p>
+                  </div>
+                </div>
+                
+                {selectedStudentProfile.objectives && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Objectif principal</p>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      {selectedStudentProfile.objectives}
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Profil Alimentaire */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Utensils className="h-5 w-5 mr-2 text-green-500" />
+                  Profil Alimentaire
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Régime alimentaire</p>
+                    <p className="font-medium">{selectedStudentProfile.diet || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Fréquence de repas</p>
+                    <p className="font-medium">{selectedStudentProfile.mealFrequency || '-'}</p>
+                  </div>
+                </div>
+                
+                {selectedStudentProfile.eatingHabits && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Habitudes alimentaires</p>
+                    <p className="font-medium">{selectedStudentProfile.eatingHabits}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Activité */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Activity className="h-5 w-5 mr-2 text-orange-500" />
+                  Activité
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {selectedStudentProfile.activityLevel && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Niveau d'activité</p>
+                    <p className="font-medium">{selectedStudentProfile.activityLevel}</p>
+                  </div>
+                )}
+                
+                {selectedStudentProfile.medicalHistory && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Antécédents médicaux & sportifs</p>
+                    <p className="font-medium">{selectedStudentProfile.medicalHistory}</p>
+                  </div>
+                )}
+                
+                {selectedStudentProfile.motivation && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Motivation</p>
+                    <p className="font-medium">{selectedStudentProfile.motivation}</p>
                   </div>
                 )}
               </CardContent>

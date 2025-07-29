@@ -2,13 +2,19 @@
 export interface Student {
   id: string;
   name: string;
+  prenom?: string;
+  nom?: string;
   accessCode: string;
   email: string;
   age?: number | null;
+  sexe?: string | null;
   gender?: string | null;
+  poids_actuel?: number | null;
   initialWeight?: number | null;
   targetWeight?: number | null;
+  taille?: number | null;
   height?: number | null;
+  objectif_physique?: string | null;
   profession?: string | null;
   medicalHistory?: string | null;
   activityLevel?: string | null;
@@ -21,6 +27,7 @@ export interface Student {
   status?: string | null;
   studentCode?: string | null;
   isAdmin?: boolean;  // 🎯 NOUVELLE PROPRIÉTÉ ADMIN
+  semaine_a_calculer?: string | null; // 📅 SEMAINE À CALCULER
 }
 
 export interface Goal {
