@@ -24,6 +24,7 @@ interface Student {
   email?: string;
   sexe?: string;
   nombre_repas?: number;
+  derniere_mesure?: string; // Date de la dernière mesure
 }
 
 // Fonction utilitaire pour la variation
@@ -87,7 +88,8 @@ const airtableService = {
           statut: record.fields['Statut'] || record.fields['Status'] || 'Actif',
           email: record.fields['E-mail'] || record.fields['Email'] || '',
           sexe: record.fields['Sexe'] || record.fields['Gender'] || '',
-          nombre_repas: record.fields['Nombre de repas'] || record.fields['Meals'] || 3
+          nombre_repas: record.fields['Nombre de repas'] || record.fields['Meals'] || 3,
+          derniere_mesure: record.fields['Dernière Mesure'] || record.fields['Last Measurement'] || record.fields['Date Mesure'] || null
         };
       });
       
@@ -413,7 +415,11 @@ const Measurements: React.FC = () => {
               <Target className="h-6 w-6 text-blue-600" />
             </div>
             <div className="text-center">
-              <p className="text-sm text-blue-700 mb-1">Dernière mesure: {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
+              <p className="text-sm text-blue-700 mb-1">Dernière mesure: {
+                student.derniere_mesure 
+                  ? new Date(student.derniere_mesure).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                  : new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+              }</p>
               <p className="text-4xl font-bold text-blue-800 mb-2">{student.poids_actuel || 'N/A'} <span className="text-lg">kg</span></p>
               <p className="text-xs text-blue-600">
                 {student.poids_actuel > (student.poids_initial || student.poids_actuel) ? 
@@ -435,7 +441,11 @@ const Measurements: React.FC = () => {
               <BarChart3 className="h-6 w-6 text-purple-600" />
             </div>
             <div className="text-center">
-              <p className="text-sm text-purple-700 mb-3">Dernière mesure: {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
+              <p className="text-sm text-purple-700 mb-3">Dernière mesure: {
+                student.derniere_mesure 
+                  ? new Date(student.derniere_mesure).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                  : new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+              }</p>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <p className="font-semibold text-purple-800">Masse grasse</p>
@@ -486,7 +496,11 @@ const Measurements: React.FC = () => {
               <p className="text-gray-600 text-sm">Évolution de votre composition corporelle au fil du temps</p>
               <div className="mt-3 flex items-center justify-end text-sm">
                 <span className="text-gray-600 mr-4">
-                  Dernière mesure • {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  Dernière mesure • {
+                    student.derniere_mesure 
+                      ? new Date(student.derniere_mesure).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                      : new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                  }
                 </span>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
