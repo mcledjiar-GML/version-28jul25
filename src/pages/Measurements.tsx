@@ -412,7 +412,7 @@ const Measurements: React.FC = () => {
         .filter(m => m.poids) // Garder seulement les mesures avec poids
         .slice(0, 12) // Limiter à 12 points max pour la lisibilité
         .map(m => ({
-          date: new Date(m.date).toLocaleDateString('fr-FR', { day: '02-digit', month: '02-digit', year: '2-digit' }),
+          date: new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
           poids: Math.round(m.poids * 10) / 10
         }));
     }
@@ -437,7 +437,7 @@ const Measurements: React.FC = () => {
       const poids = poidsInitial + (changementTotal * progression) + variation;
       
       data.push({
-        date: date.toLocaleDateString('fr-FR', { day: '02-digit', month: '02-digit', year: '2-digit' }),
+        date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
         poids: Math.round(poids * 10) / 10
       });
     }
