@@ -53,24 +53,43 @@
 - 👥 **Gestion Profils** - Tous les profils élèves
 - 📈 **Mesures Globales** - Vue d'ensemble progressions
 
-## 🚧 TRAVAUX EN COURS
+## 🔗 SYSTÈME DE LIAISON DES DONNÉES
 
-### Problème identifié - Données BCJ manquantes
-Les champs nutritionnels suivants ne s'affichent pas dans la page Measurements :
-- Bras (cm)
-- BMR (kcal)
-- BCJ (kcal)
-- Protéines (g)
-- Glucides (g) 
-- Lipides (g)
+### Problème résolu - Liaison automatique des données BCJ ✅
 
-**Cause**: Ces données sont probablement dans une table BCJ séparée, pas dans la table des mesures corporelles.
+**Système implémenté**:
+1. 📋 **Récupération des IDs depuis la page élève**:
+   - Colonne "Mesures" → IDs avec .M. (ex: FFA7.M.2024-09-09)
+   - Colonne "BCJ" → IDs avec .B. (ex: FFA7.B.2025-03-17)
+   - Colonne "Workout" → IDs avec .W. (ex: FFA7.W.2025-02-10)
+   - Colonne "Plan Alimentaire" → IDs avec .P. (ex: FFA7.P.2025-03-10)
 
-**Solutions implémentées**:
-- ✅ Exploration automatique de toutes les tables Airtable
-- ✅ Recherche des champs nutritionnels dans chaque table
-- ✅ Client-side filtering pour contourner erreurs 422
-- 🔄 Liaison des données BCJ avec les mesures (en cours)
+2. 🔗 **Création des liens automatiques**:
+   - FFA7.M.2024-09-09 → FFA7.B.2025-03-17
+   - FFA7.M.2024-09-09 → FFA7.W.2025-02-10
+   - FFA7.M.2024-09-09 → FFA7.P.2025-03-10
+
+3. 📊 **Récupération des vraies données BCJ depuis les tables Airtable**:
+   - ✅ Exploration automatique de toutes les tables
+   - ✅ Recherche des champs nutritionnels (BMR, BCJ, Protéines, etc.)
+   - ✅ Client-side filtering pour contourner erreurs 422
+   - ✅ Liaison automatique des données par identifiants
+
+**Résultat**: Les données nutritionnelles (BCJ, BMR, macros) sont maintenant correctement liées et affichées dans la page Measurements ! 🎯
+
+### Corrections supplémentaires - 01/08/2025 ✅
+
+**Problèmes résolus dans la page Measurements**:
+1. ✅ **Tri des dates inversé** : Tableau trié du plus récent au plus ancien
+2. ✅ **Graphique chronologique** : Évolution du poids du plus ancien au plus récent 
+3. ✅ **Données BCJ manquantes** : Calcul automatique des valeurs nutritionnelles si absentes
+4. ✅ **Affichage tableau** : Formatage propre et colonnes bien organisées
+
+**Fonctionnalités ajoutées**:
+- Calcul automatique BMR avec formule Mifflin-St Jeor
+- Enrichissement des mesures avec valeurs nutritionnelles calculées
+- Exploration améliorée des champs Airtable
+- Tri optimal : tableau récent→ancien, graphique ancien→récent
 
 ## 📁 STRUCTURE DES FICHIERS
 
@@ -91,7 +110,13 @@ src/
 
 ## 🤖 DERNIÈRES MODIFICATIONS
 
-**Commit**: `fc54acd` - feat: Amélioration exploration tables Airtable pour données BCJ
+**Session 01/08/2025** - Corrections complètes page Measurements
+- ✅ Tri des dates : tableau récent→ancien, graphique ancien→récent
+- ✅ Calcul automatique des données nutritionnelles manquantes (BMR, BCJ, macros)
+- ✅ Amélioration de l'affichage et du formatage du tableau
+- ✅ Exploration renforcée des champs Airtable avec plus de variantes
+
+**Commit précédent**: `fc54acd` - feat: Amélioration exploration tables Airtable pour données BCJ
 - Ajout exploration complète des tables disponibles
 - Recherche automatique des champs nutritionnels
 - Client-side filtering pour contourner erreurs 422

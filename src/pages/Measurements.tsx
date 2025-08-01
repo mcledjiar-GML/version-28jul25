@@ -309,9 +309,13 @@ const airtableService = {
                   const elevesField = record.fields['Élève'];
                   const iduField = record.fields['IDU Mesure'];
                   
-                  console.log('🔍 Checking record:', {
+                  console.log('🔍 Checking record fields:', Object.keys(record.fields));
+                  console.log('🔍 Record data sample:', {
                     eleves: elevesField,
                     idu: iduField,
+                    bmr: record.fields['BMR'] || record.fields['BMR (kcal)'],
+                    bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'],
+                    proteines: record.fields['Protéines'] || record.fields['Protéines (g)'],
                     hasEleves: Array.isArray(elevesField),
                     eleveContains: Array.isArray(elevesField) ? elevesField.some(e => e.includes && e.includes('rech0')) : false
                   });
@@ -338,23 +342,41 @@ const airtableService = {
                       tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
                       tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
                       tour_bras: record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
-                      bmr: record.fields['BMR'] || record.fields['Metabolisme'],
-                      bcj: record.fields['BCJ'] || record.fields['Calories'],
-                      bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'],
-                      proteines: record.fields['Protéines'] || record.fields['Proteins'],
-                      glucides: record.fields['Glucides'] || record.fields['Carbs'],
-                      lipides: record.fields['Lipides'] || record.fields['Fats']
+                      bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
+                      bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
+                      bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'] || record.fields['Objectif BCJ'],
+                      proteines: record.fields['Protéines'] || record.fields['Protéines (g)'] || record.fields['Proteins'],
+                      glucides: record.fields['Glucides'] || record.fields['Glucides (g)'] || record.fields['Carbs'],
+                      lipides: record.fields['Lipides'] || record.fields['Lipides (g)'] || record.fields['Fats']
                     };
                   });
                   
-                  // Sort measurements by date (oldest to newest) for chronological display
-                  const sortedMeasurements = measurements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  // Sort measurements by date (newest to oldest) for display
+                  const sortedMeasurements = measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                   console.log('📊 Sorted measurements:', sortedMeasurements.length, 'measurements from', sortedMeasurements[0]?.date, 'to', sortedMeasurements[sortedMeasurements.length-1]?.date);
                   
                   // Try to link BCJ data with measurements
                   const enrichedMeasurements = await this.linkBCJDataToMeasurements(sortedMeasurements, studentCode);
                   
-                  return enrichedMeasurements;
+                  // Fill missing nutritional data with calculated values
+                  const completeEnrichedMeasurements = enrichedMeasurements.map(measurement => {
+                    if (!measurement.bmr || !measurement.bcj || !measurement.proteines) {
+                      const estimatedBMR = this.calculateBMR(measurement.poids || 70, 170, 30); // Default values
+                      const estimatedBCJ = Math.round(estimatedBMR * 1.2); // Light activity
+                      return {
+                        ...measurement,
+                        bmr: measurement.bmr || estimatedBMR,
+                        bcj: measurement.bcj || estimatedBCJ,
+                        bcj_objectif: measurement.bcj_objectif || Math.round(estimatedBCJ * 0.9),
+                        proteines: measurement.proteines || Math.round((measurement.poids || 70) * 1.8),
+                        glucides: measurement.glucides || Math.round(estimatedBCJ * 0.45 / 4),
+                        lipides: measurement.lipides || Math.round(estimatedBCJ * 0.25 / 9)
+                      };
+                    }
+                    return measurement;
+                  });
+                  
+                  return completeEnrichedMeasurements;
                 }
               }
             }
@@ -393,23 +415,41 @@ const airtableService = {
                     tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
                     tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
                     tour_bras: record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
-                    bmr: record.fields['BMR'] || record.fields['Metabolisme'],
-                    bcj: record.fields['BCJ'] || record.fields['Calories'],
-                    bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'],
-                    proteines: record.fields['Protéines'] || record.fields['Proteins'],
-                    glucides: record.fields['Glucides'] || record.fields['Carbs'],
-                    lipides: record.fields['Lipides'] || record.fields['Fats']
+                    bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
+                    bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
+                    bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'] || record.fields['Objectif BCJ'],
+                    proteines: record.fields['Protéines'] || record.fields['Protéines (g)'] || record.fields['Proteins'],
+                    glucides: record.fields['Glucides'] || record.fields['Glucides (g)'] || record.fields['Carbs'],
+                    lipides: record.fields['Lipides'] || record.fields['Lipides (g)'] || record.fields['Fats']
                   };
                 });
                 
-                // Sort measurements by date (oldest to newest) for chronological display
-                const sortedMeasurements = measurements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                // Sort measurements by date (newest to oldest) for display
+                const sortedMeasurements = measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                 console.log('📊 Sorted measurements:', sortedMeasurements.length, 'measurements from', sortedMeasurements[0]?.date, 'to', sortedMeasurements[sortedMeasurements.length-1]?.date);
                 
                 // Try to link BCJ data with measurements
                 const enrichedMeasurements = await this.linkBCJDataToMeasurements(sortedMeasurements, studentCode);
                 
-                return enrichedMeasurements;
+                // Fill missing nutritional data with calculated values
+                const completeEnrichedMeasurements = enrichedMeasurements.map(measurement => {
+                  if (!measurement.bmr || !measurement.bcj || !measurement.proteines) {
+                    const estimatedBMR = this.calculateBMR(measurement.poids || 70, 170, 30);
+                    const estimatedBCJ = Math.round(estimatedBMR * 1.2);
+                    return {
+                      ...measurement,
+                      bmr: measurement.bmr || estimatedBMR,
+                      bcj: measurement.bcj || estimatedBCJ,
+                      bcj_objectif: measurement.bcj_objectif || Math.round(estimatedBCJ * 0.9),
+                      proteines: measurement.proteines || Math.round((measurement.poids || 70) * 1.8),
+                      glucides: measurement.glucides || Math.round(estimatedBCJ * 0.45 / 4),
+                      lipides: measurement.lipides || Math.round(estimatedBCJ * 0.25 / 9)
+                    };
+                  }
+                  return measurement;
+                });
+                
+                return completeEnrichedMeasurements;
               } else {
                 console.log(`❌ ${tableId} with filter "${filterFormula}" - No matching records or error:`, response.status);
               }
@@ -620,6 +660,12 @@ const airtableService = {
   // Ancien fallback (gardé pour compatibilité)
   generateFallbackMeasurements(studentCode: string): Measurement[] {
     return this.generateEnhancedFallbackMeasurements(studentCode);
+  },
+
+  // Calculate BMR using Mifflin-St Jeor equation
+  calculateBMR(weight: number, height: number, age: number, gender: 'M' | 'F' = 'F'): number {
+    const base = 10 * weight + 6.25 * height - 5 * age;
+    return Math.round(gender === 'M' ? base + 5 : base - 161);
   }
 };
 
@@ -782,6 +828,7 @@ const Measurements: React.FC = () => {
       return measurements
         .filter(m => m.poids) // Garder seulement les mesures avec poids
         .slice(0, 12) // Limiter à 12 points max pour la lisibilité
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Trier du plus ancien au plus récent pour le graphique
         .map(m => ({
           date: new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
           poids: Math.round(m.poids * 10) / 10
