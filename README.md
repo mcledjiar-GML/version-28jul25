@@ -84,12 +84,14 @@
 2. ✅ **Graphique chronologique** : Évolution du poids du plus ancien au plus récent 
 3. ✅ **Données BCJ manquantes** : Calcul automatique des valeurs nutritionnelles si absentes
 4. ✅ **Affichage tableau** : Formatage propre et colonnes bien organisées
+5. ✅ **Date dernière mesure** : Affichage de la vraie date depuis Airtable au lieu de la date du jour
 
 **Fonctionnalités ajoutées**:
 - Calcul automatique BMR avec formule Mifflin-St Jeor
 - Enrichissement des mesures avec valeurs nutritionnelles calculées
 - Exploration améliorée des champs Airtable
 - Tri optimal : tableau récent→ancien, graphique ancien→récent
+- **Date de dernière mesure réelle** : Affichage basé sur la vraie dernière mesure Airtable
 
 ## 📁 STRUCTURE DES FICHIERS
 
@@ -115,6 +117,7 @@ src/
 - ✅ Calcul automatique des données nutritionnelles manquantes (BMR, BCJ, macros)
 - ✅ Amélioration de l'affichage et du formatage du tableau
 - ✅ Exploration renforcée des champs Airtable avec plus de variantes
+- ✅ **Correction date dernière mesure** : Affichage basé sur les vraies données Airtable
 
 **Commit précédent**: `fc54acd` - feat: Amélioration exploration tables Airtable pour données BCJ
 - Ajout exploration complète des tables disponibles

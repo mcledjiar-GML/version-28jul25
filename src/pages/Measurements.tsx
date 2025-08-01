@@ -922,6 +922,9 @@ const Measurements: React.FC = () => {
     const compositionData = getCompositionData(student);
     const imc = student.poids_actuel && student.taille ? 
       Math.round((student.poids_actuel / Math.pow(student.taille / 100, 2)) * 10) / 10 : 0;
+    
+    // Récupérer la vraie date de la dernière mesure depuis les données measurements
+    const lastMeasurementDate = measurements.length > 0 ? measurements[0].date : null;
 
     return (
       <div className="space-y-8">
@@ -1002,9 +1005,9 @@ const Measurements: React.FC = () => {
             </div>
             <div className="text-center">
               <p className="text-sm text-blue-700 mb-1">Dernière mesure: {
-                student.derniere_mesure 
-                  ? new Date(student.derniere_mesure).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-                  : new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                lastMeasurementDate 
+                  ? new Date(lastMeasurementDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Aucune mesure'
               }</p>
               <p className="text-4xl font-bold text-blue-800 mb-2">{student.poids_actuel || 'N/A'} <span className="text-lg">kg</span></p>
               <p className="text-xs text-blue-600">
@@ -1028,9 +1031,9 @@ const Measurements: React.FC = () => {
             </div>
             <div className="text-center">
               <p className="text-sm text-purple-700 mb-3">Dernière mesure: {
-                student.derniere_mesure 
-                  ? new Date(student.derniere_mesure).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-                  : new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                lastMeasurementDate 
+                  ? new Date(lastMeasurementDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Aucune mesure'
               }</p>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
@@ -1083,9 +1086,9 @@ const Measurements: React.FC = () => {
               <div className="mt-3 flex items-center justify-end text-sm">
                 <span className="text-gray-600 mr-4">
                   Dernière mesure • {
-                    student.derniere_mesure 
-                      ? new Date(student.derniere_mesure).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-                      : new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                    lastMeasurementDate 
+                      ? new Date(lastMeasurementDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                      : 'Aucune mesure'
                   }
                 </span>
                 <div className="flex items-center space-x-4">
@@ -1285,11 +1288,15 @@ const Measurements: React.FC = () => {
                 <span>BCJ = Besoin Calorique Journalier</span>
               </div>
               <div>
-                Dernière mise à jour: {new Date(measurements[0]?.date).toLocaleDateString('fr-FR', { 
-                  day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
-                })}
+                Dernière mise à jour: {
+                  lastMeasurementDate 
+                    ? new Date(lastMeasurementDate).toLocaleDateString('fr-FR', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                      })
+                    : 'Aucune mesure'
+                }
               </div>
             </div>
           )}
