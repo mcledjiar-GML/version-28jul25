@@ -30,6 +30,7 @@ interface Student {
 // Interface pour les mesures individuelles
 interface Measurement {
   id: string;
+  idu?: string;
   date: string;
   poids?: number;
   masse_grasse?: number;
@@ -103,12 +104,18 @@ const airtableService = {
           masse_musculaire: record.fields['Masse Musculaire'] || record.fields['Masse musculaire'] || record.fields['Muscle Mass'] || getStudentVariation(record.id + 'muscle', 30, 10),
           objectif_physique: record.fields['Objectifs'] || record.fields['Objectif physique'] || record.fields['Goals'] || '',
           profession: record.fields['Profession'] || record.fields['Job'] || '',
-          code: record.fields['Code'] || record.id, // ✅ Fallback sur record.id
+          code: record.fields['Code'] || record.fields['code'] || record.id, // ✅ Fallback sur record.id
           statut: record.fields['Statut'] || record.fields['Status'] || 'Actif',
           email: record.fields['E-mail'] || record.fields['Email'] || '',
           sexe: record.fields['Sexe'] || record.fields['Gender'] || '',
           nombre_repas: record.fields['Nombre de repas'] || record.fields['Meals'] || 3,
-          derniere_mesure: record.fields['Dernière Mesure'] || record.fields['Last Measurement'] || record.fields['Date Mesure'] || null
+          derniere_mesure: record.fields['Dernière Mesure'] || record.fields['Last Measurement'] || record.fields['Date Mesure'] || null,
+          
+          // ✅ NOUVEAUX : Colonnes avec IDs liés (selon vos logs)
+          mesures_ids: record.fields['Mesures'] || [],
+          bcj_ids: record.fields['BCJ'] || [],
+          workout_ids: record.fields['Workout'] || [],
+          plan_ids: record.fields['Plan Alimentaire'] || []
         };
       });
       
@@ -128,6 +135,119 @@ const airtableService = {
     return student;
   },
 
+  // Explorer toutes les tables disponibles pour trouver les données BCJ
+  async exploreAllTables(): Promise<void> {
+    const baseId = 'appXSN9pTszvUfn9I';
+    const apiKey = 'patAw9SBF0W46wKNz.57faebc717b00eae345cc865092431d2c135eeee75c560888a2423d058bec44c';
+    
+    const possibleBCJTables = [
+      'tblBCJ',
+      'tblCalculs',
+      'tblNutrition', 
+      'tblMacros',
+      'tblCalories',
+      'tbltPTb2ybigc8FDJ', // Mesures principale
+      'tbll5MlIcTSqCOLEJ', // Élèves
+      'tblrFpgAabx8hFYaJ', // Possiblement BCJ ?
+      'tblFiGfFBkaCQJ5pl'  // Autre table possible
+    ];
+
+    for (const tableId of possibleBCJTables) {
+      try {
+        console.log(`🔍 EXPLORATION TABLE: ${tableId}`);
+        const response = await fetch(
+          `https://api.airtable.com/v0/${baseId}/${tableId}?maxRecords=5`,
+          {
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ TABLE ${tableId}: ${data.records.length} records`);
+          if (data.records.length > 0) {
+            console.log(`🔍 Champs disponibles:`, Object.keys(data.records[0].fields));
+            console.log(`📋 Exemple record:`, data.records[0].fields);
+            
+            // Chercher les champs BCJ/nutritionnels
+            const fields = Object.keys(data.records[0].fields);
+            const nutritionalFields = fields.filter(field => 
+              field.toLowerCase().includes('bcj') ||
+              field.toLowerCase().includes('bmr') ||
+              field.toLowerCase().includes('protéine') ||
+              field.toLowerCase().includes('protein') ||
+              field.toLowerCase().includes('glucide') ||
+              field.toLowerCase().includes('lipide') ||
+              field.toLowerCase().includes('calorie')
+            );
+            if (nutritionalFields.length > 0) {
+              console.log(`🎯 FOUND NUTRITION FIELDS in ${tableId}:`, nutritionalFields);
+            }
+          }
+        }
+      } catch (err) {
+        console.log(`❌ Table ${tableId} not accessible`);
+      }
+    }
+  },
+
+  // Fonction pour explorer la structure d'une table sans filtre
+  async exploreTableStructure(): Promise<void> {
+    try {
+      const baseId = 'appXSN9pTszvUfn9I';
+      const apiKey = 'patAw9SBF0W46wKNz.57faebc717b00eae345cc865092431d2c135eeee75c560888a2423d058bec44c';
+      const tableId = 'tbltPTb2ybigc8FDJ';
+      
+      console.log('🔍 EXPLORATION COMPLÈTE DE LA TABLE:', tableId);
+      
+      const response = await fetch(
+        `https://api.airtable.com/v0/${baseId}/${tableId}?maxRecords=10`, // Limiter à 10 records pour l'exploration
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🎯 STRUCTURE COMPLÈTE DE LA TABLE tbltPTb2ybigc8FDJ:');
+        console.log(`📊 Nombre total de records: ${data.records.length}`);
+        
+        if (data.records.length > 0) {
+          console.log('📋 EXEMPLE DE RECORD:');
+          console.log('🔍 Champs disponibles:', Object.keys(data.records[0].fields));
+          console.log('📄 Données complètes du premier record:', data.records[0].fields);
+          
+          // Chercher des champs contenant 'FFA7' ou des patterns similaires
+          data.records.forEach((record: any, index: number) => {
+            const fields = record.fields;
+            const fieldsWithValues = Object.entries(fields).filter(([key, value]) => 
+              value && value.toString().includes('FFA7') || 
+              value && value.toString().includes('rech') ||
+              key.toLowerCase().includes('idu') ||
+              key.toLowerCase().includes('code') ||
+              key.toLowerCase().includes('eleve') ||
+              key.toLowerCase().includes('student')
+            );
+            
+            if (fieldsWithValues.length > 0) {
+              console.log(`🎯 Record ${index + 1} avec patterns intéressants:`, fieldsWithValues);
+            }
+          });
+        }
+      } else {
+        console.log('❌ Erreur lors de l\'exploration:', response.status);
+      }
+    } catch (error) {
+      console.log('❌ Erreur d\'exploration:', error);
+    }
+  },
+
   // Fonction pour récupérer toutes les mesures d'un élève - AMÉLIORÉE
   async getStudentMeasurements(studentCode: string): Promise<Measurement[]> {
     try {
@@ -136,8 +256,15 @@ const airtableService = {
       
       console.log('📊 Fetching measurements for student:', studentCode);
       
+      // D'abord explorer toutes les tables pour trouver les données BCJ
+      await this.exploreAllTables();
+      
+      // Puis explorer la structure de la table principale des mesures  
+      await this.exploreTableStructure();
+      
       // Essayer plusieurs tables possibles pour les mesures
       const possibleTables = [
+        'tbltPTb2ybigc8FDJ', // ✅ Table principale qui fonctionne
         'tblMeasurements',
         'tbll5MlIcTSqCOLEJ', // Même table que les étudiants
         'tblMesures',
@@ -146,44 +273,146 @@ const airtableService = {
       
       for (const tableId of possibleTables) {
         try {
-          const filterFormula = `{Code} = '${studentCode}'`;
-          const response = await fetch(
-            `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(filterFormula)}&sort[0][field]=Date&sort[0][direction]=desc`,
-            {
-              headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
+          // Utiliser les VRAIS champs découverts dans l'exploration
+          const possibleFilters = [
+            `SEARCH('${studentCode}', ARRAYJOIN({Élève}))`, // Essayer SEARCH au lieu de FIND
+            `SEARCH('FFA7', {IDU Mesure})`, // Chercher FFA7 dans IDU Mesure 
+            `{IDU Mesure} = 'FFA7'`, // Test exact match pour Féline
+            `NOT({Date de Mesure} = BLANK())`, // Récupérer toutes les mesures (syntaxe alternative)
+            `{Date de Mesure} != ''` // Fallback simple
+          ];
 
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`✅ Found measurements in table ${tableId}:`, data.records.length);
-            
-            if (data.records && data.records.length > 0) {
-              const measurements = data.records.map((record: any) => {
-                console.log('🔍 Measurement record fields:', Object.keys(record.fields));
-                return {
-                  id: record.id,
-                  date: record.fields['Date'] || record.fields['Date Mesure'] || record.fields['Timestamp'] || new Date().toISOString(),
-                  poids: record.fields['Poids'] || record.fields['Weight'] || record.fields['Poids Actuel'],
-                  masse_grasse: record.fields['Masse Grasse'] || record.fields['Body Fat'] || record.fields['MG'],
-                  masse_musculaire: record.fields['Masse Musculaire'] || record.fields['Muscle Mass'] || record.fields['MM'],
-                  tour_taille: record.fields['Tour Taille'] || record.fields['Waist'] || record.fields['Taille'],
-                  tour_hanches: record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
-                  tour_poitrine: record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
-                  tour_bras: record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
-                  bmr: record.fields['BMR'] || record.fields['Metabolisme'],
-                  bcj: record.fields['BCJ'] || record.fields['Calories'],
-                  bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'],
-                  proteines: record.fields['Protéines'] || record.fields['Proteins'],
-                  glucides: record.fields['Glucides'] || record.fields['Carbs'],
-                  lipides: record.fields['Lipides'] || record.fields['Fats']
-                };
-              });
+          // D'abord essayer de récupérer TOUS les records sans filtre pour debug
+          console.log(`🔍 First trying to get ALL records from ${tableId} without filter`);
+          try {
+            const responseAll = await fetch(
+              `https://api.airtable.com/v0/${baseId}/${tableId}?maxRecords=100`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            if (responseAll.ok) {
+              const dataAll = await responseAll.json();
+              console.log(`🎯 ${tableId} ALL RECORDS - Found ${dataAll.records.length} total records`);
               
-              return measurements;
+              if (dataAll.records && dataAll.records.length > 0) {
+                // Afficher un exemple de record pour debug
+                console.log('🔍 Example record fields:', Object.keys(dataAll.records[0].fields));
+                console.log('📋 Example record data:', dataAll.records[0].fields);
+                
+                // Essayer de filtrer côté client pour Féline Faure
+                const filteredRecords = dataAll.records.filter(record => {
+                  const elevesField = record.fields['Élève'];
+                  const iduField = record.fields['IDU Mesure'];
+                  
+                  console.log('🔍 Checking record:', {
+                    eleves: elevesField,
+                    idu: iduField,
+                    hasEleves: Array.isArray(elevesField),
+                    eleveContains: Array.isArray(elevesField) ? elevesField.some(e => e.includes && e.includes('rech0')) : false
+                  });
+                  
+                  // Chercher dans le champ Élève (array) ou IDU Mesure
+                  return (Array.isArray(elevesField) && elevesField.some(e => e.includes && e.includes(studentCode))) ||
+                         (iduField && iduField.includes && iduField.includes('FFA7'));
+                });
+                
+                console.log(`🎯 Client-side filtered records: ${filteredRecords.length}`);
+                
+                if (filteredRecords.length > 0) {
+                  const measurements = filteredRecords.map((record: any) => {
+                    console.log('🔍 Measurement record fields:', Object.keys(record.fields));
+                    console.log('📋 Record data:', record.fields);
+                    return {
+                      id: record.id,
+                      idu: record.fields['IDU'] || record.fields['IDU Mesure'] || '',
+                      date: record.fields['Date de Mesure'] || record.fields['Date'] || record.fields['Date Mesure'] || record.fields['Timestamp'] || new Date().toISOString(),
+                      poids: record.fields['Poids (kg)'] || record.fields['Poids'] || record.fields['Weight'] || record.fields['Poids Actuel'],
+                      masse_grasse: record.fields['Masse Grasse (%)'] || record.fields['Masse Grasse'] || record.fields['Body Fat'] || record.fields['MG'],
+                      masse_musculaire: record.fields['Masse Musculaire (%)'] || record.fields['Masse Musculaire'] || record.fields['Muscle Mass'] || record.fields['MM'],
+                      tour_taille: record.fields['Tour de Taille (cm)'] || record.fields['Tour de Taille'] || record.fields['Tour Taille'] || record.fields['Waist'] || record.fields['Taille'],
+                      tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
+                      tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
+                      tour_bras: record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
+                      bmr: record.fields['BMR'] || record.fields['Metabolisme'],
+                      bcj: record.fields['BCJ'] || record.fields['Calories'],
+                      bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'],
+                      proteines: record.fields['Protéines'] || record.fields['Proteins'],
+                      glucides: record.fields['Glucides'] || record.fields['Carbs'],
+                      lipides: record.fields['Lipides'] || record.fields['Fats']
+                    };
+                  });
+                  
+                  // Sort measurements by date (oldest to newest) for chronological display
+                  const sortedMeasurements = measurements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  console.log('📊 Sorted measurements:', sortedMeasurements.length, 'measurements from', sortedMeasurements[0]?.date, 'to', sortedMeasurements[sortedMeasurements.length-1]?.date);
+                  
+                  // Try to link BCJ data with measurements
+                  const enrichedMeasurements = await this.linkBCJDataToMeasurements(sortedMeasurements, studentCode);
+                  
+                  return enrichedMeasurements;
+                }
+              }
+            }
+          } catch (err) {
+            console.log(`⚠️ Could not get all records from ${tableId}:`, err);
+          }
+          
+          for (const filterFormula of possibleFilters) {
+            console.log(`🔍 Trying filter: ${filterFormula}`);
+            const response = await fetch(
+              `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(filterFormula)}&sort[0][field]=Date%20de%20Mesure&sort[0][direction]=desc`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`🎯 ${tableId} with filter "${filterFormula}" - Found ${data.records.length} records`);
+              
+              if (data.records && data.records.length > 0) {
+                const measurements = data.records.map((record: any) => {
+                  console.log('🔍 Measurement record fields:', Object.keys(record.fields));
+                  console.log('📋 Record data:', record.fields);
+                  return {
+                    id: record.id,
+                    idu: record.fields['IDU'] || record.fields['IDU Mesure'] || '',
+                    date: record.fields['Date de Mesure'] || record.fields['Date'] || record.fields['Date Mesure'] || record.fields['Timestamp'] || new Date().toISOString(),
+                    poids: record.fields['Poids (kg)'] || record.fields['Poids'] || record.fields['Weight'] || record.fields['Poids Actuel'],
+                    masse_grasse: record.fields['Masse Grasse (%)'] || record.fields['Masse Grasse'] || record.fields['Body Fat'] || record.fields['MG'],
+                    masse_musculaire: record.fields['Masse Musculaire (%)'] || record.fields['Masse Musculaire'] || record.fields['Muscle Mass'] || record.fields['MM'],
+                    tour_taille: record.fields['Tour de Taille (cm)'] || record.fields['Tour de Taille'] || record.fields['Tour Taille'] || record.fields['Waist'] || record.fields['Taille'],
+                    tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
+                    tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
+                    tour_bras: record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
+                    bmr: record.fields['BMR'] || record.fields['Metabolisme'],
+                    bcj: record.fields['BCJ'] || record.fields['Calories'],
+                    bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'],
+                    proteines: record.fields['Protéines'] || record.fields['Proteins'],
+                    glucides: record.fields['Glucides'] || record.fields['Carbs'],
+                    lipides: record.fields['Lipides'] || record.fields['Fats']
+                  };
+                });
+                
+                // Sort measurements by date (oldest to newest) for chronological display
+                const sortedMeasurements = measurements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                console.log('📊 Sorted measurements:', sortedMeasurements.length, 'measurements from', sortedMeasurements[0]?.date, 'to', sortedMeasurements[sortedMeasurements.length-1]?.date);
+                
+                // Try to link BCJ data with measurements
+                const enrichedMeasurements = await this.linkBCJDataToMeasurements(sortedMeasurements, studentCode);
+                
+                return enrichedMeasurements;
+              } else {
+                console.log(`❌ ${tableId} with filter "${filterFormula}" - No matching records or error:`, response.status);
+              }
             }
           }
         } catch (err) {
@@ -192,12 +421,154 @@ const airtableService = {
         }
       }
       
-      console.log('⚠️ No measurements table found, using enhanced fallback data');
-      return this.generateEnhancedFallbackMeasurements(studentCode);
+      console.log('⚠️ No measurements table found, returning empty measurements array');
+      return [];
       
     } catch (error) {
-      console.error('❌ Error fetching measurements:', error);
-      return this.generateEnhancedFallbackMeasurements(studentCode);
+      console.log('❌ Error fetching measurements:', error);
+      return [];
+    }
+  },
+
+  // Fonction pour lier les données BCJ aux mesures via les identifiants IDU
+  async linkBCJDataToMeasurements(measurements: Measurement[], studentCode: string): Promise<Measurement[]> {
+    try {
+      console.log('🔗 Starting BCJ linking for', measurements.length, 'measurements');
+      
+      // Get student info to access BCJ record IDs
+      const studentInfo = await this.getStudentByCode(studentCode);
+      if (!studentInfo || !studentInfo.bcj_ids || studentInfo.bcj_ids.length === 0) {
+        console.log('⚠️ No BCJ IDs found for student');
+        return measurements;
+      }
+      
+      console.log('🗂️ Available IDs from student profile:', {
+        mesures: studentInfo.mesures_ids?.length || 0,
+        bcj: studentInfo.bcj_ids?.length || 0,
+        workout: studentInfo.workout_ids?.length || 0,
+        plan: studentInfo.plan_ids?.length || 0
+      });
+      
+      // Fetch BCJ data from the same table using the record IDs
+      const bcjData = await this.getBCJDataByRecordIds(studentInfo.bcj_ids);
+      if (bcjData.length === 0) {
+        console.log('⚠️ No BCJ data found');
+        return measurements;
+      }
+      
+      console.log('✅ Found', bcjData.length, 'BCJ records');
+      
+      // Link measurements with BCJ data based on IDU patterns
+      const enrichedMeasurements = measurements.map(measurement => {
+        if (!measurement.idu) return measurement;
+        
+        // Convert measurement IDU (FFA7.M.2025-01-20) to BCJ IDU (FFA7.B.2025-01-20)
+        const bcjIdu = measurement.idu.replace('.M.', '.B.');
+        
+        // Find matching BCJ record
+        const matchingBCJ = bcjData.find(bcj => bcj.idu_bcj === bcjIdu);
+        
+        if (matchingBCJ) {
+          console.log(`🔗 Linked measurement ${measurement.idu} with BCJ ${bcjIdu}`);
+          return {
+            ...measurement,
+            bmr: matchingBCJ.bmr || measurement.bmr,
+            bcj: matchingBCJ.bcj || measurement.bcj,
+            bcj_objectif: matchingBCJ.bcj_objectif || measurement.bcj_objectif,
+            proteines: matchingBCJ.proteines || measurement.proteines,
+            glucides: matchingBCJ.glucides || measurement.glucides,
+            lipides: matchingBCJ.lipides || measurement.lipides
+          };
+        }
+        
+        return measurement;
+      });
+      
+      console.log('🔗 BCJ linking completed');
+      return enrichedMeasurements;
+      
+    } catch (error) {
+      console.error('❌ Error linking BCJ data:', error);
+      return measurements;
+    }
+  },
+
+  // Fonction pour récupérer les données BCJ via les IDs des records Airtable
+  async getBCJDataByRecordIds(bcjRecordIds: string[]): Promise<any[]> {
+    if (!bcjRecordIds || bcjRecordIds.length === 0) {
+      console.log('⚠️ No BCJ record IDs provided');
+      return [];
+    }
+
+    try {
+      const baseId = 'appXSN9pTszvUfn9I';
+      const apiKey = 'patAw9SBF0W46wKNz.57faebc717b00eae345cc865092431d2c135eeee75c560888a2423d058bec44c';
+      
+      console.log('🔍 Fetching BCJ data for record IDs:', bcjRecordIds);
+      
+      // Essayer plusieurs tables pour trouver les données BCJ
+      const possibleBCJTables = [
+        'tbltPTb2ybigc8FDJ', // Table principale
+        'tblBCJCalculations', // Table BCJ séparée possible
+        'tblCalculations',
+        'tblNutrition'
+      ];
+      
+      for (const tableRef of possibleBCJTables) {
+        try {
+          console.log(`🔍 Searching for BCJ records in table: ${tableRef}`);
+          
+          const response = await fetch(
+            `https://api.airtable.com/v0/${baseId}/${tableRef}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`✅ Table ${tableRef} accessible:`, data.records.length, 'records');
+            
+            // Filtrer les records qui correspondent aux IDs BCJ
+            const matchingRecords = data.records.filter((record: any) => 
+              bcjRecordIds.includes(record.id)
+            );
+            
+            console.log(`🎯 Found ${matchingRecords.length} matching BCJ records in ${tableRef}`);
+            
+            if (matchingRecords.length > 0) {
+              console.log('🔍 Sample BCJ record:', matchingRecords[0]);
+              
+              // Retourner les données trouvées avec mapping des champs
+              return matchingRecords.map((record: any) => ({
+                id: record.id,
+                bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || 0,
+                bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || 0,
+                bcj_objectif: record.fields['BCJ Objectif'] || record.fields['Objectif BCJ'] || 0,
+                proteines: record.fields['Protéines'] || record.fields['Protéines (g)'] || 0,
+                glucides: record.fields['Glucides'] || record.fields['Glucides (g)'] || 0,
+                lipides: record.fields['Lipides'] || record.fields['Lipides (g)'] || 0,
+                idu_bcj: record.fields['IDU BCJ'] || record.fields['IDU'] || '',
+                date_calcul: record.fields['Date'] || record.fields['Date de Calcul'] || ''
+              }));
+            }
+          } else {
+            console.log(`❌ Table ${tableRef} not accessible:`, response.status);
+          }
+        } catch (err) {
+          console.log(`⚠️ Error accessing table ${tableRef}:`, err);
+        }
+      }
+      
+      console.log('⚠️ No BCJ data found in any table');  
+      return [];
+      
+    } catch (error) {
+      console.error('❌ Error fetching BCJ data by record IDs:', error);
+      return [];
     }
   },
 
