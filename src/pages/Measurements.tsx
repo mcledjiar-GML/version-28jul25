@@ -266,7 +266,30 @@ const airtableService = {
       console.log('🗂️ Found measurement IDs for student:', student.mesures_ids);
       
       // ÉTAPE 2: Récupérer les mesures via leurs IDs Airtable
-      return await this.getMeasurementsByIds(student.mesures_ids);
+      const measurements = await this.getMeasurementsByIds(student.mesures_ids);
+      
+      // ÉTAPE 3: Enrichir avec les données BCJ depuis les IDs liés
+      const enrichedMeasurements = await this.linkBCJDataToMeasurements(measurements, studentCode);
+      
+      // ÉTAPE 4: Compléter avec les données calculées si manquantes
+      const completeEnrichedMeasurements = enrichedMeasurements.map(measurement => {
+        if (!measurement.bmr || !measurement.bcj || !measurement.proteines) {
+          const estimatedBMR = this.calculateBMR(measurement.poids || 70, 170, 30, 'F');
+          const estimatedBCJ = Math.round(estimatedBMR * 1.2);
+          return {
+            ...measurement,
+            bmr: measurement.bmr || estimatedBMR,
+            bcj: measurement.bcj || estimatedBCJ,
+            bcj_objectif: measurement.bcj_objectif || Math.round(estimatedBCJ * 0.9),
+            proteines: measurement.proteines || Math.round((measurement.poids || 70) * 1.8),
+            glucides: measurement.glucides || Math.round(estimatedBCJ * 0.45 / 4),
+            lipides: measurement.lipides || Math.round(estimatedBCJ * 0.25 / 9)
+          };
+        }
+        return measurement;
+      });
+      
+      return completeEnrichedMeasurements;
       
     } catch (error) {
       console.log('❌ Error fetching measurements:', error);
