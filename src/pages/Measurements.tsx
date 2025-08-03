@@ -39,6 +39,7 @@ interface Measurement {
   tour_hanches?: number;
   tour_poitrine?: number;
   tour_bras?: number;
+  eau?: number;
   bmr?: number;
   bcj?: number;
   bcj_objectif?: number;
@@ -356,6 +357,7 @@ const airtableService = {
           tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
           tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
           tour_bras: record.fields['Tour de Bras G'] || record.fields['Tour de Bras D'] || record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
+          eau: record.fields['Eau (%)'] || record.fields['Eau'] || record.fields['Water'] || record.fields['Hydration'],
           bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
           bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
           bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'] || record.fields['Objectif BCJ'],
@@ -762,8 +764,10 @@ const Measurements: React.FC = () => {
           date: new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
           'Masse grasse': m.masse_grasse ? Math.round(m.masse_grasse * 10) / 10 : null,
           'Masse musculaire': m.masse_musculaire ? Math.round(m.masse_musculaire * 10) / 10 : null,
-          'Eau': m.masse_grasse && m.masse_musculaire ? 
-            Math.round((100 - m.masse_grasse - m.masse_musculaire) * 10) / 10 : null // Calculer l'eau restante
+          'Eau': m.eau ? 
+            Math.round(m.eau * 10) / 10 : 
+            (m.masse_grasse && m.masse_musculaire ? 
+              Math.round((100 - m.masse_grasse - m.masse_musculaire) * 10) / 10 : null) // Utiliser vraie donnée eau ou calculer
         }));
       
       console.log(`📊 Graphique composition: ${validMeasurements.length} vraies mesures avec composition pour ${student.prenom} ${student.nom}`);
@@ -1204,7 +1208,7 @@ const Measurements: React.FC = () => {
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">Taille<br/><span className="text-xs font-normal">(cm)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">Hanches<br/><span className="text-xs font-normal">(cm)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">Poitrine<br/><span className="text-xs font-normal">(cm)</span></th>
-                  <th className="px-3 py-3 text-center text-gray-600 font-medium">Bras<br/><span className="text-xs font-normal">(cm)</span></th>
+                  <th className="px-3 py-3 text-center text-gray-600 font-medium">Eau<br/><span className="text-xs font-normal">(%)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">BMR<br/><span className="text-xs font-normal">(kcal)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">BCJ<br/><span className="text-xs font-normal">(kcal)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">Objectif<br/><span className="text-xs font-normal">(kcal)</span></th>
@@ -1241,8 +1245,12 @@ const Measurements: React.FC = () => {
                     <td className="px-3 py-3 text-center text-gray-700">
                       {mesure.tour_poitrine || '-'}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-700">
-                      {mesure.tour_bras || '-'}
+                    <td className="px-3 py-3 text-center text-blue-600 font-medium">
+                      {mesure.eau ? 
+                        `${mesure.eau}%` : 
+                        (mesure.masse_grasse && mesure.masse_musculaire ? 
+                          `${Math.round((100 - mesure.masse_grasse - mesure.masse_musculaire) * 10) / 10}%` : '-')
+                      }
                     </td>
                     <td className="px-3 py-3 text-center text-purple-600 font-medium">
                       {mesure.bmr || '-'}
