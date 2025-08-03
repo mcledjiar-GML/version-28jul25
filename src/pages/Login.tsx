@@ -97,7 +97,18 @@ const Login = () => {
                 id="accessCode"
                 type="text"
                 value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
+                onChange={(e) => {
+                  // Nettoyer automatiquement le code lors de la saisie
+                  const cleanedValue = e.target.value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+                  setAccessCode(cleanedValue);
+                }}
+                onPaste={(e) => {
+                  // Nettoyer automatiquement lors du collage depuis Airtable
+                  e.preventDefault();
+                  const pastedText = e.clipboardData.getData('text');
+                  const cleanedValue = pastedText.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+                  setAccessCode(cleanedValue);
+                }}
                 placeholder="Entrez votre code d'accès"
                 className="w-full"
                 autoFocus

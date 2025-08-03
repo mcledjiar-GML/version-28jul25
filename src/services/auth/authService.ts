@@ -53,8 +53,14 @@ class AuthService {
 
   // Authentication
   async verifyAccess(accessCode: string): Promise<Student | null> {
+    // 🧹 NETTOYER LE CODE D'ACCÈS (supprimer espaces début/fin + caractères invisibles)
+    const cleanedAccessCode = accessCode.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+    
+    console.log('🧹 Code original:', `"${accessCode}"`);
+    console.log('🧹 Code nettoyé:', `"${cleanedAccessCode}"`);
+    
     // 🎯 VÉRIFICATION ADMIN EN PREMIER
-    if (this.isAdminCode(accessCode)) {
+    if (this.isAdminCode(cleanedAccessCode)) {
       console.log('🔑 Accès admin détecté avec le code:', accessCode);
       const adminStudent = this.createAdminStudent(accessCode);
       console.log('✅ Connexion admin réussie:', adminStudent);
@@ -64,11 +70,11 @@ class AuthService {
     // En mode démo ou développement, utiliser les données fictives
     if (!AirtableApiService.isConfigured) {
       console.log('Mode démo: utilisation de données fictives');
-      return this.verifyAccessMock(accessCode);
+      return this.verifyAccessMock(cleanedAccessCode);
     }
     
     try {
-      console.log('🔍 Tentative de vérification avec le code:', accessCode);
+      console.log('🔍 Tentative de vérification avec le code:', cleanedAccessCode);
       console.log('📊 Informations de configuration Airtable:');
       console.log(`- Base ID: ${this.getBaseId()}`);
       console.log(`- Table ID: ${this.getTableId()}`);
@@ -131,7 +137,7 @@ class AuthService {
           console.log('🔑 Codes possibles trouvés:', possibleCodes.filter(Boolean));
           console.log('🔍 Détail des codes pour cet élève:', possibleCodes.map((code, index) => ({ index, code })));
           
-          const isMatch = possibleCodes.some(code => code === accessCode);
+          const isMatch = possibleCodes.some(code => code === cleanedAccessCode);
           
           if (isMatch) {
             console.log('✅ MATCH TROUVÉ!');
@@ -157,7 +163,7 @@ class AuthService {
           return {
             id: matchingEleve.id,
             name: fields.Nom || fields["fldqgtzUUGEbyuvQF"] || fields.Name || fields.name || 'Élève',
-            accessCode: accessCode,
+            accessCode: cleanedAccessCode,
             email: fields["E-mail"] || fields["fldiswtPGMq9yr6E3"] || fields.Email || fields.email || '',
             // Ajout des champs supplémentaires
             age: fields["Âge"] || fields["fld8Vw1HWTKEw4jn8"] || null,
@@ -180,7 +186,7 @@ class AuthService {
           };
         } else {
           console.log('❌ Aucun élève trouvé avec ce code dans la table Élèves');
-          console.log('🔑 Code recherché:', accessCode);
+          console.log('🔑 Code recherché:', cleanedAccessCode);
           console.log('🔍 Codes disponibles:', eleves.map((e: any) => ({
             id: e.id,
             codeField: e.fields?.Code || e.fields?.code || e.code,
