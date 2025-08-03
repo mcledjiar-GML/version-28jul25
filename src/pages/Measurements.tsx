@@ -248,7 +248,7 @@ const airtableService = {
     }
   },
 
-  // Fonction pour récupérer toutes les mesures d'un élève - AMÉLIORÉE
+  // Fonction pour récupérer toutes les mesures d'un élève - NOUVELLE MÉTHODE
   async getStudentMeasurements(studentCode: string): Promise<Measurement[]> {
     try {
       const baseId = 'appXSN9pTszvUfn9I';
@@ -256,216 +256,102 @@ const airtableService = {
       
       console.log('📊 Fetching measurements for student:', studentCode);
       
-      // D'abord explorer toutes les tables pour trouver les données BCJ
-      await this.exploreAllTables();
-      
-      // Puis explorer la structure de la table principale des mesures  
-      await this.exploreTableStructure();
-      
-      // Essayer plusieurs tables possibles pour les mesures
-      const possibleTables = [
-        'tbltPTb2ybigc8FDJ', // ✅ Table principale qui fonctionne
-        'tblMeasurements',
-        'tbll5MlIcTSqCOLEJ', // Même table que les étudiants
-        'tblMesures',
-        'tblTracking'
-      ];
-      
-      for (const tableId of possibleTables) {
-        try {
-          // Utiliser les VRAIS champs découverts dans l'exploration
-          const possibleFilters = [
-            `SEARCH('${studentCode}', ARRAYJOIN({Élève}))`, // Essayer SEARCH au lieu de FIND
-            `SEARCH('FFA7', {IDU Mesure})`, // Chercher FFA7 dans IDU Mesure 
-            `{IDU Mesure} = 'FFA7'`, // Test exact match pour Féline
-            `NOT({Date de Mesure} = BLANK())`, // Récupérer toutes les mesures (syntaxe alternative)
-            `{Date de Mesure} != ''` // Fallback simple
-          ];
-
-          // D'abord essayer de récupérer TOUS les records sans filtre pour debug
-          console.log(`🔍 First trying to get ALL records from ${tableId} without filter`);
-          try {
-            const responseAll = await fetch(
-              `https://api.airtable.com/v0/${baseId}/${tableId}?maxRecords=100`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (responseAll.ok) {
-              const dataAll = await responseAll.json();
-              console.log(`🎯 ${tableId} ALL RECORDS - Found ${dataAll.records.length} total records`);
-              
-              if (dataAll.records && dataAll.records.length > 0) {
-                // Afficher un exemple de record pour debug
-                console.log('🔍 Example record fields:', Object.keys(dataAll.records[0].fields));
-                console.log('📋 Example record data:', dataAll.records[0].fields);
-                
-                // Essayer de filtrer côté client pour Féline Faure
-                const filteredRecords = dataAll.records.filter(record => {
-                  const elevesField = record.fields['Élève'];
-                  const iduField = record.fields['IDU Mesure'];
-                  
-                  console.log('🔍 Checking record fields:', Object.keys(record.fields));
-                  console.log('🔍 Record data sample:', {
-                    eleves: elevesField,
-                    idu: iduField,
-                    bmr: record.fields['BMR'] || record.fields['BMR (kcal)'],
-                    bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'],
-                    proteines: record.fields['Protéines'] || record.fields['Protéines (g)'],
-                    hasEleves: Array.isArray(elevesField),
-                    eleveContains: Array.isArray(elevesField) ? elevesField.some(e => e.includes && e.includes('rech0')) : false
-                  });
-                  
-                  // Chercher dans le champ Élève (array) ou IDU Mesure
-                  return (Array.isArray(elevesField) && elevesField.some(e => e.includes && e.includes(studentCode))) ||
-                         (iduField && iduField.includes && iduField.includes('FFA7'));
-                });
-                
-                console.log(`🎯 Client-side filtered records: ${filteredRecords.length}`);
-                
-                if (filteredRecords.length > 0) {
-                  const measurements = filteredRecords.map((record: any) => {
-                    console.log('🔍 Measurement record fields:', Object.keys(record.fields));
-                    console.log('📋 Record data:', record.fields);
-                    return {
-                      id: record.id,
-                      idu: record.fields['IDU'] || record.fields['IDU Mesure'] || '',
-                      date: record.fields['Date de Mesure'] || record.fields['Date'] || record.fields['Date Mesure'] || record.fields['Timestamp'] || new Date().toISOString(),
-                      poids: record.fields['Poids (kg)'] || record.fields['Poids'] || record.fields['Weight'] || record.fields['Poids Actuel'],
-                      masse_grasse: record.fields['Masse Grasse (%)'] || record.fields['Masse Grasse'] || record.fields['Body Fat'] || record.fields['MG'],
-                      masse_musculaire: record.fields['Masse Musculaire (%)'] || record.fields['Masse Musculaire'] || record.fields['Muscle Mass'] || record.fields['MM'],
-                      tour_taille: record.fields['Tour de Taille (cm)'] || record.fields['Tour de Taille'] || record.fields['Tour Taille'] || record.fields['Waist'] || record.fields['Taille'],
-                      tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
-                      tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
-                      tour_bras: record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
-                      bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
-                      bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
-                      bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'] || record.fields['Objectif BCJ'],
-                      proteines: record.fields['Protéines'] || record.fields['Protéines (g)'] || record.fields['Proteins'],
-                      glucides: record.fields['Glucides'] || record.fields['Glucides (g)'] || record.fields['Carbs'],
-                      lipides: record.fields['Lipides'] || record.fields['Lipides (g)'] || record.fields['Fats']
-                    };
-                  });
-                  
-                  // Sort measurements by date (newest to oldest) for display
-                  const sortedMeasurements = measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                  console.log('📊 Sorted measurements:', sortedMeasurements.length, 'measurements from', sortedMeasurements[0]?.date, 'to', sortedMeasurements[sortedMeasurements.length-1]?.date);
-                  
-                  // Try to link BCJ data with measurements
-                  const enrichedMeasurements = await this.linkBCJDataToMeasurements(sortedMeasurements, studentCode);
-                  
-                  // Fill missing nutritional data with calculated values
-                  const completeEnrichedMeasurements = enrichedMeasurements.map(measurement => {
-                    if (!measurement.bmr || !measurement.bcj || !measurement.proteines) {
-                      const estimatedBMR = this.calculateBMR(measurement.poids || 70, 170, 30); // Default values
-                      const estimatedBCJ = Math.round(estimatedBMR * 1.2); // Light activity
-                      return {
-                        ...measurement,
-                        bmr: measurement.bmr || estimatedBMR,
-                        bcj: measurement.bcj || estimatedBCJ,
-                        bcj_objectif: measurement.bcj_objectif || Math.round(estimatedBCJ * 0.9),
-                        proteines: measurement.proteines || Math.round((measurement.poids || 70) * 1.8),
-                        glucides: measurement.glucides || Math.round(estimatedBCJ * 0.45 / 4),
-                        lipides: measurement.lipides || Math.round(estimatedBCJ * 0.25 / 9)
-                      };
-                    }
-                    return measurement;
-                  });
-                  
-                  return completeEnrichedMeasurements;
-                }
-              }
-            }
-          } catch (err) {
-            console.log(`⚠️ Could not get all records from ${tableId}:`, err);
-          }
-          
-          for (const filterFormula of possibleFilters) {
-            console.log(`🔍 Trying filter: ${filterFormula}`);
-            const response = await fetch(
-              `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(filterFormula)}&sort[0][field]=Date%20de%20Mesure&sort[0][direction]=desc`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              console.log(`🎯 ${tableId} with filter "${filterFormula}" - Found ${data.records.length} records`);
-              
-              if (data.records && data.records.length > 0) {
-                const measurements = data.records.map((record: any) => {
-                  console.log('🔍 Measurement record fields:', Object.keys(record.fields));
-                  console.log('📋 Record data:', record.fields);
-                  return {
-                    id: record.id,
-                    idu: record.fields['IDU'] || record.fields['IDU Mesure'] || '',
-                    date: record.fields['Date de Mesure'] || record.fields['Date'] || record.fields['Date Mesure'] || record.fields['Timestamp'] || new Date().toISOString(),
-                    poids: record.fields['Poids (kg)'] || record.fields['Poids'] || record.fields['Weight'] || record.fields['Poids Actuel'],
-                    masse_grasse: record.fields['Masse Grasse (%)'] || record.fields['Masse Grasse'] || record.fields['Body Fat'] || record.fields['MG'],
-                    masse_musculaire: record.fields['Masse Musculaire (%)'] || record.fields['Masse Musculaire'] || record.fields['Muscle Mass'] || record.fields['MM'],
-                    tour_taille: record.fields['Tour de Taille (cm)'] || record.fields['Tour de Taille'] || record.fields['Tour Taille'] || record.fields['Waist'] || record.fields['Taille'],
-                    tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
-                    tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
-                    tour_bras: record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
-                    bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
-                    bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
-                    bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'] || record.fields['Objectif BCJ'],
-                    proteines: record.fields['Protéines'] || record.fields['Protéines (g)'] || record.fields['Proteins'],
-                    glucides: record.fields['Glucides'] || record.fields['Glucides (g)'] || record.fields['Carbs'],
-                    lipides: record.fields['Lipides'] || record.fields['Lipides (g)'] || record.fields['Fats']
-                  };
-                });
-                
-                // Sort measurements by date (newest to oldest) for display
-                const sortedMeasurements = measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                console.log('📊 Sorted measurements:', sortedMeasurements.length, 'measurements from', sortedMeasurements[0]?.date, 'to', sortedMeasurements[sortedMeasurements.length-1]?.date);
-                
-                // Try to link BCJ data with measurements
-                const enrichedMeasurements = await this.linkBCJDataToMeasurements(sortedMeasurements, studentCode);
-                
-                // Fill missing nutritional data with calculated values
-                const completeEnrichedMeasurements = enrichedMeasurements.map(measurement => {
-                  if (!measurement.bmr || !measurement.bcj || !measurement.proteines) {
-                    const estimatedBMR = this.calculateBMR(measurement.poids || 70, 170, 30);
-                    const estimatedBCJ = Math.round(estimatedBMR * 1.2);
-                    return {
-                      ...measurement,
-                      bmr: measurement.bmr || estimatedBMR,
-                      bcj: measurement.bcj || estimatedBCJ,
-                      bcj_objectif: measurement.bcj_objectif || Math.round(estimatedBCJ * 0.9),
-                      proteines: measurement.proteines || Math.round((measurement.poids || 70) * 1.8),
-                      glucides: measurement.glucides || Math.round(estimatedBCJ * 0.45 / 4),
-                      lipides: measurement.lipides || Math.round(estimatedBCJ * 0.25 / 9)
-                    };
-                  }
-                  return measurement;
-                });
-                
-                return completeEnrichedMeasurements;
-              } else {
-                console.log(`❌ ${tableId} with filter "${filterFormula}" - No matching records or error:`, response.status);
-              }
-            }
-          }
-        } catch (err) {
-          console.log(`⚠️ Table ${tableId} not accessible, trying next...`);
-          continue;
-        }
+      // ÉTAPE 1: Récupérer l'élève pour obtenir ses IDs de mesures liés
+      const student = await this.getStudentByCode(studentCode);
+      if (!student || !student.mesures_ids || student.mesures_ids.length === 0) {
+        console.log('⚠️ No measurement IDs found for student:', studentCode);
+        return [];
       }
       
-      console.log('⚠️ No measurements table found, returning empty measurements array');
-      return [];
+      console.log('🗂️ Found measurement IDs for student:', student.mesures_ids);
+      
+      // ÉTAPE 2: Récupérer les mesures via leurs IDs Airtable
+      return await this.getMeasurementsByIds(student.mesures_ids);
       
     } catch (error) {
       console.log('❌ Error fetching measurements:', error);
+      return [];
+    }
+  },
+
+  // Nouvelle fonction pour récupérer les mesures par leurs IDs Airtable
+  async getMeasurementsByIds(measurementIds: string[]): Promise<Measurement[]> {
+    if (!measurementIds || measurementIds.length === 0) {
+      console.log('⚠️ No measurement IDs provided');
+      return [];
+    }
+
+    try {
+      const baseId = 'appXSN9pTszvUfn9I';
+      const apiKey = 'patAw9SBF0W46wKNz.57faebc717b00eae345cc865092431d2c135eeee75c560888a2423d058bec44c';
+      const tableId = 'tbltPTb2ybigc8FDJ'; // Table des mesures
+      
+      console.log('🔍 Fetching measurements by IDs:', measurementIds);
+      
+      // Récupérer tous les records de la table des mesures
+      const response = await fetch(
+        `https://api.airtable.com/v0/${baseId}/${tableId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Found ${data.records.length} total records in measurements table`);
+      
+      // Filtrer les records qui correspondent aux IDs demandés
+      const matchingRecords = data.records.filter((record: any) => 
+        measurementIds.includes(record.id)
+      );
+      
+      console.log(`🎯 Found ${matchingRecords.length} matching measurements`);
+      
+      if (matchingRecords.length === 0) {
+        return [];
+      }
+
+      // Mapper les records en objets Measurement
+      const measurements = matchingRecords.map((record: any) => {
+        console.log('🔍 Processing measurement record:', record.id);
+        console.log('📋 Record data:', record.fields);
+        
+        return {
+          id: record.id,
+          idu: record.fields['IDU'] || record.fields['IDU Mesure'] || '',
+          date: record.fields['Date de Mesure'] || record.fields['Date'] || record.fields['Date Mesure'] || record.fields['Timestamp'] || new Date().toISOString(),
+          poids: record.fields['Poids (kg)'] || record.fields['Poids'] || record.fields['Weight'] || record.fields['Poids Actuel'],
+          masse_grasse: record.fields['Masse Grasse (%)'] || record.fields['Masse Grasse'] || record.fields['Body Fat'] || record.fields['MG'],
+          masse_musculaire: record.fields['Masse Musculaire (%)'] || record.fields['Masse Musculaire'] || record.fields['Muscle Mass'] || record.fields['MM'],
+          tour_taille: record.fields['Tour de Taille (cm)'] || record.fields['Tour de Taille'] || record.fields['Tour Taille'] || record.fields['Waist'] || record.fields['Taille'],
+          tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
+          tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
+          tour_bras: record.fields['Tour de Bras G'] || record.fields['Tour de Bras D'] || record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
+          bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
+          bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
+          bcj_objectif: record.fields['BCJ Objectif'] || record.fields['BCJ Target'] || record.fields['Objectif Calories'] || record.fields['Objectif BCJ'],
+          proteines: record.fields['Protéines'] || record.fields['Protéines (g)'] || record.fields['Proteins'],
+          glucides: record.fields['Glucides'] || record.fields['Glucides (g)'] || record.fields['Carbs'],
+          lipides: record.fields['Lipides'] || record.fields['Lipides (g)'] || record.fields['Fats']
+        };
+      });
+      
+      // Trier par date (plus récente en premier)
+      const sortedMeasurements = measurements.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      console.log('📊 Returning sorted measurements:', sortedMeasurements.length);
+      return sortedMeasurements;
+      
+    } catch (error) {
+      console.error('❌ Error fetching measurements by IDs:', error);
       return [];
     }
   },
@@ -821,90 +707,49 @@ const Measurements: React.FC = () => {
     window.open(youformUrl, '_blank');
   };
 
-  // Données pour les graphiques - AMÉLIORÉ avec vraies mesures
+  // Données pour les graphiques - VRAIES MESURES UNIQUEMENT
   const getEvolutionData = (student: Student) => {
-    // Si on a des mesures réelles, les utiliser pour le graphique
-    if (measurements.length >= 3) {
-      return measurements
+    // Utiliser UNIQUEMENT les vraies mesures
+    if (measurements.length > 0) {
+      const validMeasurements = measurements
         .filter(m => m.poids) // Garder seulement les mesures avec poids
-        .slice(0, 12) // Limiter à 12 points max pour la lisibilité
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Trier du plus ancien au plus récent pour le graphique
         .map(m => ({
           date: new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
           poids: Math.round(m.poids * 10) / 10
         }));
+      
+      console.log(`📊 Graphique poids: ${validMeasurements.length} vraies mesures pour ${student.prenom} ${student.nom}`);
+      return validMeasurements;
     }
     
-    // Sinon, générer 12 points de données réalistes
-    const today = new Date();
-    const data = [];
-    const numPoints = 12;
-    
-    for (let i = numPoints - 1; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - (i * 15)); // Un point tous les 15 jours
-      
-      // Progression plus réaliste avec variations
-      const progression = (numPoints - 1 - i) / (numPoints - 1);
-      const variation = Math.sin(i * 0.3) * 0.3; // Variations naturelles
-      
-      const poidsInitial = student.poids_initial || student.poids_actuel + 5;
-      const poidsActuel = student.poids_actuel;
-      const changementTotal = poidsActuel - poidsInitial;
-      
-      const poids = poidsInitial + (changementTotal * progression) + variation;
-      
-      data.push({
-        date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-        poids: Math.round(poids * 10) / 10
-      });
-    }
-    
-    return data;
+    // Si aucune mesure, retourner un tableau vide
+    console.log(`📊 Aucune mesure réelle trouvée pour ${student.prenom} ${student.nom}`);
+    return [];
   };
 
-  // Nouvelles données pour le graphique de composition corporelle - DYNAMIQUES
+  // Données pour le graphique de composition corporelle - VRAIES MESURES UNIQUEMENT
   const getCompositionEvolutionData = (student: Student) => {
-    const today = new Date();
-    const data = [];
-    
-    // Valeurs ACTUELLES de l'élève depuis Airtable
-    const currentMasseGrasse = student.masse_grasse || getStudentVariation(student.id + 'fat', 32.4, 3);
-    const currentMasseMusculaire = student.masse_musculaire || getStudentVariation(student.id + 'muscle', 63, 2);
-    const currentEau = getStudentVariation(student.id + 'water', 47.2, 2);
-    
-    // Générer une progression réaliste basée sur les valeurs actuelles
-    const months = [
-      '14/09/24', '28/09/24', '14/10/24', '28/10/24', '14/11/24', '28/11/24',
-      '14/12/24', '28/12/24', '06/01/25', '20/01/25', '03/01/25'
-    ];
-    
-    months.forEach((dateStr, index) => {
-      const progressFactor = index / (months.length - 1);
-      const isLastPoint = index === months.length - 1;
+    // Utiliser UNIQUEMENT les vraies mesures avec composition corporelle
+    if (measurements.length > 0) {
+      const validMeasurements = measurements
+        .filter(m => m.masse_grasse || m.masse_musculaire) // Garder seulement les mesures avec composition
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Trier du plus ancien au plus récent
+        .map(m => ({
+          date: new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+          'Masse grasse': m.masse_grasse ? Math.round(m.masse_grasse * 10) / 10 : null,
+          'Masse musculaire': m.masse_musculaire ? Math.round(m.masse_musculaire * 10) / 10 : null,
+          'Eau': m.masse_grasse && m.masse_musculaire ? 
+            Math.round((100 - m.masse_grasse - m.masse_musculaire) * 10) / 10 : null // Calculer l'eau restante
+        }));
       
-      // Le dernier point utilise les VRAIES valeurs actuelles
-      const masseGrasse = isLastPoint ? 
-        currentMasseGrasse : 
-        Math.round((currentMasseGrasse + (2 - progressFactor * 2)) * 10) / 10;
-      
-      const masseMusculaire = isLastPoint ? 
-        currentMasseMusculaire : 
-        Math.round((currentMasseMusculaire - (1.5 - progressFactor * 1.5)) * 10) / 10;
-      
-      const eau = isLastPoint ? 
-        currentEau : 
-        Math.round((currentEau - (1 - progressFactor * 1)) * 10) / 10;
-      
-      data.push({
-        date: dateStr,
-        'Masse grasse': masseGrasse,
-        'Masse musculaire': masseMusculaire,
-        'Eau': eau
-      });
-    });
+      console.log(`📊 Graphique composition: ${validMeasurements.length} vraies mesures avec composition pour ${student.prenom} ${student.nom}`);
+      return validMeasurements;
+    }
     
-    return data;
+    // Si aucune mesure, retourner un tableau vide
+    console.log(`📊 Aucune mesure de composition corporelle trouvée pour ${student.prenom} ${student.nom}`);
+    return [];
   };
 
   const getCompositionData = (student: Student) => {
@@ -976,24 +821,119 @@ const Measurements: React.FC = () => {
               <h3 className="text-lg font-semibold text-green-800">Progression du poids</h3>
               <Scale className="h-6 w-6 text-green-600" />
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-green-700">Poids initial:</span>
-                <span className="font-semibold text-green-800">{student.poids_initial || student.poids_actuel} kg</span>
+            
+            {/* Données de poids */}
+            <div className="flex justify-between text-sm text-green-700 mb-2">
+              <span>{student.poids_initial || student.poids_actuel} kg</span>
+              <span className="font-bold text-lg text-green-800">{student.poids_actuel} kg</span>
+              <span>{student.poids_objectif} kg</span>
+            </div>
+            
+            {/* Barre de progression */}
+            <div className="relative mb-4">
+              <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width: `${Math.min(Math.max(
+                      ((student.poids_initial || student.poids_actuel) - student.poids_actuel) / 
+                      ((student.poids_initial || student.poids_actuel) - student.poids_objectif) * 100, 
+                      0), 100)}%`
+                  }}
+                />
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-green-700">Poids actuel:</span>
-                <span className="font-bold text-xl text-green-800">{student.poids_actuel} kg</span>
+              {/* Labels sur la barre */}
+              <div className="flex justify-between text-xs text-green-600 mt-1">
+                <span>Début</span>
+                <span>Actuel</span>
+                <span>Objectif</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-green-700">Poids cible:</span>
-                <span className="font-semibold text-green-800">{student.poids_objectif} kg</span>
-              </div>
-              <div className="mt-3 text-center">
-                <span className="text-xs text-green-600">
-                  Il vous reste {Math.abs(student.poids_actuel - student.poids_objectif).toFixed(1)} kg pour atteindre votre objectif
-                </span>
-              </div>
+            </div>
+            
+            {/* Informations de progression */}
+            <div className="text-center space-y-1">
+              {(() => {
+                const poidsInitial = student.poids_initial || student.poids_actuel;
+                const poidsActuel = student.poids_actuel;
+                const poidsObjectif = student.poids_objectif;
+                const changementPoids = poidsInitial - poidsActuel; // Positif = perte, Négatif = prise
+                const poidsAPerdreTotal = poidsInitial - poidsObjectif;
+                const objectifAtteint = poidsActuel <= poidsObjectif;
+                
+                // Calculer progression différemment selon le sens
+                let progression = 0;
+                if (poidsAPerdreTotal > 0) { // Objectif de perte de poids
+                  progression = Math.min(Math.max((changementPoids / poidsAPerdreTotal) * 100, 0), 100);
+                }
+
+                if (objectifAtteint) {
+                  const surplus = poidsObjectif - poidsActuel;
+                  return (
+                    <>
+                      <div className="text-sm text-green-700">
+                        <span className="font-semibold text-green-800">🎉 Objectif atteint !</span>
+                      </div>
+                      <div className="text-xs text-green-700">
+                        <span className="font-semibold">
+                          {changementPoids > 0 ? `${changementPoids.toFixed(1)} kg perdus` : `${Math.abs(changementPoids).toFixed(1)} kg pris`}
+                        </span>
+                        <span> sur {poidsAPerdreTotal.toFixed(1)} kg visés</span>
+                      </div>
+                      {surplus > 0 && (
+                        <div className="text-xs text-green-800 font-medium">
+                          Bonus: {surplus.toFixed(1)} kg en dessous de l'objectif !
+                        </div>
+                      )}
+                    </>
+                  );
+                } else {
+                  const restant = poidsActuel - poidsObjectif;
+                  
+                  // Si prise de poids au lieu de perte
+                  if (changementPoids < 0) {
+                    return (
+                      <>
+                        <div className="text-sm text-orange-700">
+                          <span className="font-semibold text-red-600">
+                            {Math.abs(changementPoids).toFixed(1)} kg pris
+                          </span>
+                          <span className="text-orange-600"> / </span>
+                          <span className="text-orange-700">
+                            {restant.toFixed(1)} kg à perdre
+                          </span>
+                        </div>
+                        <div className="text-xs text-orange-600">
+                          ⚠️ Prise de poids - Éloignement de l'objectif
+                        </div>
+                        <div className="text-xs text-red-600">
+                          {restant.toFixed(1)} kg à perdre pour atteindre votre objectif
+                        </div>
+                      </>
+                    );
+                  } else {
+                    // Perte de poids normale
+                    return (
+                      <>
+                        <div className="text-sm text-green-700">
+                          <span className="font-semibold">
+                            {changementPoids.toFixed(1)} kg perdus
+                          </span>
+                          <span className="text-green-600"> / </span>
+                          <span>
+                            {poidsAPerdreTotal.toFixed(1)} kg à perdre
+                          </span>
+                        </div>
+                        <div className="text-xs text-green-600">
+                          {progression.toFixed(1)}% de votre objectif accompli
+                        </div>
+                        <div className="text-xs text-green-600">
+                          Plus que {restant.toFixed(1)} kg pour atteindre votre objectif
+                        </div>
+                      </>
+                    );
+                  }
+                }
+              })()}
             </div>
           </div>
 
@@ -1010,16 +950,30 @@ const Measurements: React.FC = () => {
                   : 'Aucune mesure'
               }</p>
               <p className="text-4xl font-bold text-blue-800 mb-2">{student.poids_actuel || 'N/A'} <span className="text-lg">kg</span></p>
-              <p className="text-xs text-blue-600">
-                {student.poids_actuel > (student.poids_initial || student.poids_actuel) ? 
-                  `+${(student.poids_actuel - (student.poids_initial || student.poids_actuel)).toFixed(1)} kg depuis la dernière mesure` :
-                  `${(student.poids_actuel - (student.poids_initial || student.poids_actuel)).toFixed(1)} kg depuis la dernière mesure`
-                }
-              </p>
-              <p className="text-xs text-blue-600 mt-1">Poids perdu depuis le début: {((student.poids_initial || student.poids_actuel) - student.poids_actuel).toFixed(1)} kg</p>
-              <p className="text-sm font-medium text-blue-700 mt-2">
-                Restant pour atteindre l'objectif: {Math.abs(student.poids_actuel - student.poids_objectif).toFixed(1)} kg
-              </p>
+              
+              {(() => {
+                const poidsInitial = student.poids_initial || student.poids_actuel;
+                const poidsActuel = student.poids_actuel;
+                const poidsObjectif = student.poids_objectif;
+                const changementDepuisDebut = poidsInitial - poidsActuel; // Positif = perte, Négatif = prise
+                
+                return (
+                  <>
+                    <p className="text-xs text-blue-600">
+                      {changementDepuisDebut >= 0 ? 
+                        `${changementDepuisDebut.toFixed(1)} kg perdu depuis le début` :
+                        `+${Math.abs(changementDepuisDebut).toFixed(1)} kg pris depuis le début`
+                      }
+                    </p>
+                    <p className="text-sm font-medium text-blue-700 mt-2">
+                      {poidsActuel > poidsObjectif ? 
+                        `${(poidsActuel - poidsObjectif).toFixed(1)} kg à perdre pour atteindre l'objectif` :
+                        `🎉 Objectif atteint ! ${(poidsObjectif - poidsActuel).toFixed(1)} kg en dessous`
+                      }
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -1062,123 +1016,145 @@ const Measurements: React.FC = () => {
               <TrendingUp className="h-6 w-6 text-green-500 mr-2" />
               Évolution du poids
             </h3>
-            <p className="text-gray-600 text-sm mb-4">Historique de l'évolution de votre poids sur la période</p>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={evolutionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis domain={['dataMin - 2', 'dataMax + 2']} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="poids" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981' }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <p className="text-gray-600 text-sm mb-4">
+              Historique de l'évolution de votre poids ({evolutionData.length} mesure{evolutionData.length > 1 ? 's' : ''} enregistrée{evolutionData.length > 1 ? 's' : ''})
+            </p>
+            {evolutionData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={evolutionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis domain={['dataMin - 2', 'dataMax + 2']} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="poids" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-300 flex items-center justify-center">
+                <div className="text-center">
+                  <TrendingUp className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">Aucune mesure de poids enregistrée</p>
+                  <p className="text-gray-400 text-sm">Le graphique apparaîtra dès la première mesure</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Composition corporelle - Graphique linéaire comme dans l'image */}
+          {/* Composition corporelle - Graphique linéaire avec vraies données uniquement */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="mb-6">
               <h3 className="text-xl font-semibold text-gray-800 mb-2 flex items-center">
                 <BarChart3 className="h-6 w-6 text-purple-500 mr-2" />
                 Composition corporelle
               </h3>
-              <p className="text-gray-600 text-sm">Évolution de votre composition corporelle au fil du temps</p>
-              <div className="mt-3 flex items-center justify-end text-sm">
-                <span className="text-gray-600 mr-4">
-                  Dernière mesure • {
-                    lastMeasurementDate 
-                      ? new Date(lastMeasurementDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-                      : 'Aucune mesure'
-                  }
-                </span>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                    <span className="text-red-600 font-medium">
-                      {student.masse_grasse || getStudentVariation(student.id + 'fat', 32.4, 3)}%
-                    </span>
-                    <span className="text-gray-500 ml-1 text-xs">de masse grasse</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                    <span className="text-green-600 font-medium">
-                      {student.masse_musculaire || getStudentVariation(student.id + 'muscle', 63, 2)}%
-                    </span>
-                    <span className="text-gray-500 ml-1 text-xs">de masse musculaire</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-                    <span className="text-blue-600 font-medium">
-                      {getStudentVariation(student.id + 'water', 47.2, 2)}%
-                    </span>
-                    <span className="text-gray-500 ml-1 text-xs">d'eau</span>
+              <p className="text-gray-600 text-sm">
+                Évolution de votre composition corporelle ({getCompositionEvolutionData(student).length} mesure{getCompositionEvolutionData(student).length > 1 ? 's' : ''} avec composition)
+              </p>
+              {getCompositionEvolutionData(student).length > 0 && (
+                <div className="mt-3 flex items-center justify-end text-sm">
+                  <span className="text-gray-600 mr-4">
+                    Dernière mesure • {
+                      lastMeasurementDate 
+                        ? new Date(lastMeasurementDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                        : 'Aucune mesure'
+                    }
+                  </span>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                      <span className="text-red-600 font-medium">
+                        {student.masse_grasse || 'N/A'}%
+                      </span>
+                      <span className="text-gray-500 ml-1 text-xs">de masse grasse</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                      <span className="text-green-600 font-medium">
+                        {student.masse_musculaire || 'N/A'}%
+                      </span>
+                      <span className="text-gray-500 ml-1 text-xs">de masse musculaire</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
-            <ResponsiveContainer width="100%" height={320} key={`composition-evolution-${student.id}`}>
-              <LineChart data={getCompositionEvolutionData(student)} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9ca3af' }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis 
-                  domain={[30, 50]}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9ca3af' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                  formatter={(value, name) => [
-                    `${value}%`, 
-                    name === 'Masse grasse' ? 'Masse grasse' : 
-                    name === 'Masse musculaire' ? 'Masse musculaire' : 'Eau'
-                  ]}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36}
-                  iconType="circle"
-                  wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Masse grasse" 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
-                  dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2, fill: '#ef4444' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Masse musculaire" 
-                  stroke="#10b981" 
-                  strokeWidth={2}
-                  dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2, fill: '#10b981' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Eau" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2, fill: '#3b82f6' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {getCompositionEvolutionData(student).length > 0 ? (
+              <ResponsiveContainer width="100%" height={320} key={`composition-evolution-${student.id}`}>
+                <LineChart data={getCompositionEvolutionData(student)} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#9ca3af' }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    domain={['dataMin - 5', 'dataMax + 5']}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#9ca3af' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value, name) => [
+                      value ? `${value}%` : 'N/A', 
+                      name === 'Masse grasse' ? 'Masse grasse' : 
+                      name === 'Masse musculaire' ? 'Masse musculaire' : 'Eau'
+                    ]}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    iconType="circle"
+                    wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Masse grasse" 
+                    stroke="#ef4444" 
+                    strokeWidth={2}
+                    dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2, fill: '#ef4444' }}
+                    connectNulls={false}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Masse musculaire" 
+                    stroke="#10b981" 
+                    strokeWidth={2}
+                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2, fill: '#10b981' }}
+                    connectNulls={false}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Eau" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2, fill: '#3b82f6' }}
+                    connectNulls={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-320 flex items-center justify-center">
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">Aucune mesure de composition corporelle</p>
+                  <p className="text-gray-400 text-sm">Le graphique apparaîtra dès qu'une mesure avec masse grasse/musculaire sera enregistrée</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
