@@ -39,6 +39,7 @@ interface Measurement {
   tour_hanches?: number;
   tour_poitrine?: number;
   tour_bras?: number;
+  graisse_viscerale?: number;
   eau?: number;
   bmr?: number;
   bcj?: number;
@@ -357,6 +358,7 @@ const airtableService = {
           tour_hanches: record.fields['Tour de Hanches (cm)'] || record.fields['Tour de Hanches'] || record.fields['Tour Hanches'] || record.fields['Hips'] || record.fields['Hanches'],
           tour_poitrine: record.fields['Tour de Poitrine (cm)'] || record.fields['Tour de Poitrine'] || record.fields['Tour Poitrine'] || record.fields['Chest'] || record.fields['Poitrine'],
           tour_bras: record.fields['Tour de Bras G'] || record.fields['Tour de Bras D'] || record.fields['Tour de Bras (cm)'] || record.fields['Tour de Bras'] || record.fields['Tour Bras'] || record.fields['Arms'] || record.fields['Bras'],
+          graisse_viscerale: record.fields['Graisse Viscérale'] || record.fields['Visceral Fat'] || record.fields['Graisse viscérale'] || record.fields['Viscéral'] || record.fields['GV'],
           eau: record.fields['Eau (%)'] || record.fields['Eau'] || record.fields['Water'] || record.fields['Hydration'],
           bmr: record.fields['BMR'] || record.fields['BMR (kcal)'] || record.fields['Metabolisme'] || record.fields['Métabolisme de base'],
           bcj: record.fields['BCJ'] || record.fields['BCJ (kcal)'] || record.fields['Calories'] || record.fields['Besoin Calorique'],
@@ -1206,8 +1208,7 @@ const Measurements: React.FC = () => {
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">MG<br/><span className="text-xs font-normal">(%)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">MM<br/><span className="text-xs font-normal">(%)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">Taille<br/><span className="text-xs font-normal">(cm)</span></th>
-                  <th className="px-3 py-3 text-center text-gray-600 font-medium">Hanches<br/><span className="text-xs font-normal">(cm)</span></th>
-                  <th className="px-3 py-3 text-center text-gray-600 font-medium">Poitrine<br/><span className="text-xs font-normal">(cm)</span></th>
+                  <th className="px-3 py-3 text-center text-gray-600 font-medium">Graisse Viscérale<br/><span className="text-xs font-normal">(niveau)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">Eau<br/><span className="text-xs font-normal">(%)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">BMR<br/><span className="text-xs font-normal">(kcal)</span></th>
                   <th className="px-3 py-3 text-center text-gray-600 font-medium">BCJ<br/><span className="text-xs font-normal">(kcal)</span></th>
@@ -1239,11 +1240,8 @@ const Measurements: React.FC = () => {
                     <td className="px-3 py-3 text-center text-gray-700">
                       {mesure.tour_taille || '-'}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-700">
-                      {mesure.tour_hanches || '-'}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-700">
-                      {mesure.tour_poitrine || '-'}
+                    <td className="px-3 py-3 text-center text-orange-600 font-medium">
+                      {mesure.graisse_viscerale || '-'}
                     </td>
                     <td className="px-3 py-3 text-center text-blue-600 font-medium">
                       {mesure.eau ? 
@@ -1291,6 +1289,7 @@ const Measurements: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <span>MG = Masse Grasse</span>
                 <span>MM = Masse Musculaire</span>
+                <span>GV = Graisse Viscérale</span>
                 <span>BMR = Métabolisme de Base</span>
                 <span>BCJ = Besoin Calorique Journalier</span>
               </div>
