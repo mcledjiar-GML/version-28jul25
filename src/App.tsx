@@ -10,6 +10,7 @@ import Profile from './pages/Profile'
 import Measurements from './pages/Measurements'
 import Calculations from './pages/Calculations'
 import Workouts from './pages/Workouts'
+import WorkoutDetail from './pages/WorkoutDetail'
 import Nutrition from './pages/Nutrition'
 import Ebooks from './pages/Ebooks'
 import AirtableConfig from './pages/AirtableConfig'
@@ -34,6 +35,7 @@ function App() {
             <Route path="/measurements" element={<Measurements />} />
             <Route path="/calculations" element={<Calculations />} />
             <Route path="/workouts" element={<Workouts />} />
+            <Route path="/workout-detail" element={<WorkoutDetail />} />
             <Route path="/nutrition" element={<Nutrition />} />
             <Route path="/ebooks" element={<Ebooks />} />
             <Route path="/airtable-config" element={<AirtableConfig />} />

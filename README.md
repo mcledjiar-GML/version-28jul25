@@ -1,12 +1,13 @@
 # 🏋️‍♂️ APPLICATION DE COACHING SPORTIF
 
-## 📋 ÉTAT ACTUEL - 01/08/2025
+## 📋 ÉTAT ACTUEL - 04/08/2025
 
 ✅ **Système complet de coaching sportif fonctionnel**
 - Authentification à double niveau (élèves/admin)
 - Base de données Airtable connectée
 - 8 élèves réels avec profils complets
 - Interface responsive avec Tailwind CSS
+- **NOUVEAU**: Section Entraînements complètement refactorisée
 
 ## 🔧 STACK TECHNIQUE
 
@@ -77,6 +78,53 @@
 
 **Résultat**: Les données nutritionnelles (BCJ, BMR, macros) sont maintenant correctement liées et affichées dans la page Measurements ! 🎯
 
+## 💪 SECTION ENTRAÎNEMENTS - REFACTORISATION COMPLÈTE ✅
+
+### Nouvelle Interface Entraînements - 04/08/2025
+
+**Fonctionnalités implémentées**:
+1. 🏋️ **Dernier Entraînement**:
+   - Affichage automatique de la dernière date depuis Airtable (format FFA7.W.YYYY-MM-DD)
+   - Tableau Jour 1 avec tous les blocs d'exercices consolidés
+   - Tableau Jour 2 avec tous les blocs d'exercices consolidés
+   - Structure: Partie | Exercice | Format | Repos | Charge (kg) | Notes
+
+2. 📋 **Historique des Entraînements**:
+   - Tableau complet avec colonnes: Semaine | Bloc | Jour | Exercices | Actions
+   - Données réelles extraites d'Airtable avec identifiants uniques
+   - 14 semaines d'historique (du 10 février 2025 au 16 juin 2025)
+   - Boutons "Voir" avec icône œil pour navigation vers détails
+
+3. 🔍 **Navigation Détaillée**:
+   - Page `WorkoutDetail.tsx` pour vue détaillée de chaque semaine
+   - Navigation avec état (React Router) pour passer dates spécifiques
+   - Chaque bouton "Voir" mène à sa date respective (plus de redirection vers 16 juin)
+   - Affichage dynamique de la date sélectionnée
+
+4. 🗂️ **Architecture des Fichiers**:
+   - `pages/Workouts.tsx` - Page principale refactorisée
+   - `pages/WorkoutDetail.tsx` - Page détail d'une semaine
+   - `components/workouts/WorkoutProgressStats.tsx` - Statistiques (conservé)
+   - `components/workouts/WorkoutBlockView.tsx` - Vue par blocs (conservé)
+
+### Données Intégrées d'Airtable
+
+**Historique complet des 14 semaines**:
+- 16 juin 2025 (Bloc 4) - 14 exercices
+- 9 juin 2025 (Bloc 4) - 15 exercices  
+- 2 juin 2025 (Bloc 3) - 18 exercices
+- 26 mai 2025 (Bloc 3) - 17 exercices
+- 19 mai 2025 (Bloc 3) - 17 exercices
+- 12 mai 2025 (Bloc 3) - 17 exercices
+- 5 mai 2025 (Bloc 2) - 17 exercices
+- 28 avril 2025 (Bloc 2) - 17 exercices
+- 17 mars 2025 (Bloc 2) - 17 exercices
+- 10 mars 2025 (Bloc 2) - 16 exercices
+- 3 mars 2025 (Bloc 1) - 19 exercices
+- 24 février 2025 (Bloc 1) - 13 exercices
+- 17 février 2025 (Bloc 1) - 12 exercices
+- 10 février 2025 (Bloc 1) - 13 exercices
+
 ### Corrections supplémentaires - 01/08/2025 ✅
 
 **Problèmes résolus dans la page Measurements**:
@@ -111,6 +159,13 @@ src/
 ```
 
 ## 🤖 DERNIÈRES MODIFICATIONS
+
+**Session 04/08/2025** - Refactorisation complète section Entraînements ✅
+- ✅ **Interface Entraînements redessinée** : Nouveau layout avec dernier entraînement et historique
+- ✅ **Navigation fonctionnelle** : Boutons "Voir" avec dates spécifiques (résolu problème redirection unique)
+- ✅ **Données Airtable réelles** : Intégration des 14 semaines d'historique avec identifiants FFA7.W.*
+- ✅ **Page WorkoutDetail** : Nouvelle page pour vue détaillée de chaque semaine d'entraînement
+- ✅ **Footer mis à jour** : Remplacement par "MC LEDJIAR YAMOA SOLUTIONS ALGERIE 2025"
 
 **Session 01/08/2025** - Corrections complètes page Measurements
 - ✅ Tri des dates : tableau récent→ancien, graphique ancien→récent

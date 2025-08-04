@@ -68,24 +68,89 @@ export interface Calculation {
   notes?: string;
 }
 
-export interface Workout {
+// ==========================================
+// 🏋️ NOUVELLE STRUCTURE BLOCS D'ENTRAÎNEMENT
+// ==========================================
+
+export interface WorkoutBlock {
   id: string;
   studentId: string;
+  blockNumber: number;
+  startDate: string; // Date du lundi de la première semaine
+  weeks: WorkoutWeek[];
+  isComplete: boolean; // True si 4 semaines complètes
+  isCurrent: boolean; // True si c'est le bloc courant
+}
+
+export interface WorkoutWeek {
+  id: string;
+  blockId: string;
+  weekNumber: number; // 1, 2, 3, 4 dans le bloc
+  startDate: string; // Date du lundi de cette semaine
+  days: WorkoutDay[];
+  isComplete: boolean; // True si tous les jours programmés sont présents
+  isCurrent: boolean; // True si c'est la semaine courante
+}
+
+export interface WorkoutDay {
+  id: string;
+  weekId: string;
+  dayNumber: number; // 1=Lundi, 2=Mardi, etc.
   date: string;
-  title: string;
-  description?: string;
-  exercises: Exercise[];
-  duration?: number;
+  warmup?: WorkoutSection; // Échauffement
+  mainParts: WorkoutSection[]; // 2-3 parties principales
   notes?: string;
 }
 
+export interface WorkoutSection {
+  id: string;
+  name: string; // "Échauffement", "Partie 1", "Partie 2", etc.
+  exercises: Exercise[];
+}
+
 export interface Exercise {
+  id: string;
   name: string;
+  type: string; // Type d'exercice
   sets: number;
-  reps: number;
+  reps: number | string; // Peut être "12-15", "Max", etc.
   weight?: number;
-  restTime?: number;
+  restTime?: number; // Temps de repos en secondes
   notes?: string;
+}
+
+// ==========================================
+// 🎯 ANCIENNE INTERFACE (pour compatibilité)
+// ==========================================
+export interface Workout {
+  id: string;
+  studentId: string;
+  date?: string;
+  title?: string;
+  description?: string;
+  exercises?: Exercise[];
+  duration?: number;
+  notes?: string;
+  // Nouvelles propriétés pour la transition
+  week?: string;
+  day?: string | number;
+  block?: string | number;
+  part?: string;
+  code?: string; // Code unique ex: FFA7.W.2025-06-09
+}
+
+// ==========================================
+// 🧮 LOGIQUE MÉTIER - CALCULS DE BLOCS
+// ==========================================
+export interface BlockCalculation {
+  studentId: string;
+  currentBlock: number;
+  currentWeek: string; // Date du lundi courant
+  nextBlock: number;
+  nextWeek: string; // Date du prochain lundi
+  lastCompletedWeek?: string;
+  isPaused: boolean;
+  pausedSince?: string;
 }
 
 export interface MealPlan {

@@ -72,69 +72,229 @@ export const mockCalculations: Calculation[] = [
   }
 ];
 
-// Mock workouts data
+// Mock workouts data - Format Airtable réaliste pour Féline Faure avec codes workout
 export const mockWorkouts: Workout[] = [
   {
     id: '1',
-    studentId: '1',
-    week: '2023-12-05',
+    studentId: 'rech0KgjCrK24UrBH', // Code d'accès Féline
+    week: '2025-03-17',
     day: '1',
     block: '2',
     part: '1',
     exercises: [
       {
         id: '1',
-        name: 'Squat',
-        format: '4x10',
-        rest: '90s',
-        weight: 80,
-        notes: 'Augmenter le poids progressivement'
+        name: 'Kcal SKierg',
+        format: 'WARM UP x3',
+        rest: '',
+        weight: 0,
+        notes: ''
       },
       {
         id: '2',
-        name: 'Presse à cuisse',
-        format: '3x12',
-        rest: '60s',
-        weight: 120
+        name: 'Jumping Jack',
+        format: 'WARM UP x3',
+        rest: '',
+        weight: 0,
+        notes: ''
       },
       {
         id: '3',
-        name: 'Extension des jambes',
-        format: '3x15',
-        rest: '60s',
-        weight: 60
+        name: 'Bearwalk',
+        format: 'WARM UP x3',
+        rest: '',
+        weight: 0,
+        notes: ''
       }
     ]
   },
   {
     id: '2',
-    studentId: '1',
-    week: '2023-12-07',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
+    day: '1',
+    block: '2',
+    part: '2',
+    exercises: [
+      {
+        id: '4',
+        name: 'Push press',
+        format: 'AMRAP 15\' : Max tour possible',
+        rest: '',
+        weight: 0,
+        notes: 'haltère'
+      },
+      {
+        id: '5',
+        name: 'Jumping jack',
+        format: 'AMRAP 15\' : Max tour possible',
+        rest: '',
+        weight: 0,
+        notes: ''
+      },
+      {
+        id: '6',
+        name: 'Bearwalk',
+        format: 'AMRAP 15\' : Max tour possible',
+        rest: '',
+        weight: 0,
+        notes: ''
+      }
+    ]
+  },
+  {
+    id: '3',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
+    day: '1',
+    block: '2',
+    part: '3',
+    exercises: [
+      {
+        id: '7',
+        name: 'Squat jump',
+        format: '21 - 15 - 9 - 7 - 5 - 1',
+        rest: '',
+        weight: 0,
+        notes: ''
+      },
+      {
+        id: '8',
+        name: 'Thruster',
+        format: '21 - 15 - 9 - 7 - 5 - 1',
+        rest: '',
+        weight: 0,
+        notes: ''
+      }
+    ]
+  },
+  {
+    id: '4',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
+    day: '1',
+    block: '2',
+    part: '4',
+    exercises: [
+      {
+        id: '9',
+        name: 'Assault bike',
+        format: 'Tabata 20/10',
+        rest: '',
+        weight: 0,
+        notes: ''
+      }
+    ]
+  },
+  {
+    id: '5',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
+    day: '2',
+    block: '2',
+    part: '1',
+    exercises: [
+      {
+        id: '10',
+        name: 'Kcal SKierg',
+        format: 'WARM UP x3',
+        rest: '',
+        weight: 0,
+        notes: ''
+      },
+      {
+        id: '11',
+        name: 'Jumping Jack',
+        format: 'WARM UP x3',
+        rest: '',
+        weight: 0,
+        notes: ''
+      },
+      {
+        id: '12',
+        name: 'Bearwalk',
+        format: 'WARM UP x3',
+        rest: '',
+        weight: 0,
+        notes: ''
+      }
+    ]
+  },
+  {
+    id: '6',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
     day: '2',
     block: '2',
     part: '2',
     exercises: [
       {
-        id: '1',
-        name: 'Développé couché',
-        format: '4x8',
-        rest: '90s',
-        weight: 70
-      },
-      {
-        id: '2',
-        name: 'Élévations latérales',
-        format: '3x12',
-        rest: '60s',
-        weight: 10
-      },
-      {
-        id: '3',
-        name: 'Dips',
-        format: '3x10',
-        rest: '60s',
+        id: '13',
+        name: 'Thruster',
+        format: 'HiiT : 45s work / 15s rest - 5 Tour',
+        rest: '1\' repos',
         weight: 0,
-        notes: 'Poids du corps'
+        notes: ''
+      },
+      {
+        id: '14',
+        name: 'Farmer Walk',
+        format: 'HiiT : 45s work / 15s rest - 5 Tour',
+        rest: '1\' repos',
+        weight: 0,
+        notes: ''
+      },
+      {
+        id: '15',
+        name: 'Burpees',
+        format: 'HiiT : 45s work / 15s rest - 5 Tour',
+        rest: '1\' repos',
+        weight: 0,
+        notes: ''
+      },
+      {
+        id: '16',
+        name: 'Reverse crunch',
+        format: 'HiiT : 45s work / 15s rest - 5 Tour',
+        rest: '1\' repos',
+        weight: 0,
+        notes: ''
+      }
+    ]
+  },
+  {
+    id: '7',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
+    day: '2',
+    block: '2',
+    part: '3',
+    exercises: [
+      {
+        id: '17',
+        name: 'Inclinaison latéral',
+        format: '30s work /coté : 3 tour',
+        rest: '30/45s repos',
+        weight: 0,
+        notes: ''
+      }
+    ]
+  },
+  {
+    id: '8',
+    studentId: 'rech0KgjCrK24UrBH',
+    week: '2025-03-17',
+    day: '2',
+    block: '2',
+    part: '4',
+    exercises: [
+      {
+        id: '18',
+        name: 'Marche rapide',
+        format: '1,5km : Pente 5 / vitesse 6',
+        rest: '',
+        weight: 0,
+        notes: ''
       }
     ]
   }

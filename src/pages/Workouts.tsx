@@ -5,15 +5,13 @@ import { motion } from 'framer-motion';
 import { useStudent } from '../context/StudentContext';
 import Layout from '../components/Layout';
 import DashboardHeader from '../components/DashboardHeader';
-import { Dumbbell, Eye, Mail, Shield, Target, Calendar } from 'lucide-react';
+import { Dumbbell, Eye, Mail, Shield, Target, Calendar, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AirtableService from '@/services/AirtableService';
-import { Workout } from '@/services/types/airtable.types';
-import WorkoutCard from '@/components/workouts/WorkoutCard';
-import WorkoutHistoryTable from '@/components/workouts/WorkoutHistoryTable';
+import { Workout, WorkoutBlock, BlockCalculation } from '@/services/types/airtable.types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface StudentData {
@@ -27,12 +25,18 @@ interface StudentData {
   totalWorkouts?: number;
   latestWeek?: string;
   latestBlock?: string;
+  // Nouvelles propriétés pour les blocs
+  blocks?: WorkoutBlock[];
+  currentStatus?: BlockCalculation;
+  completionRate?: number;
 }
 
 const Workouts = () => {
   const { student } = useStudent();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [workoutBlocks, setWorkoutBlocks] = useState<WorkoutBlock[]>([]);
+  const [progressStats, setProgressStats] = useState<any>(null);
   const [studentsData, setStudentsData] = useState<StudentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -51,8 +55,8 @@ const Workouts = () => {
     setIsLoading(true);
     try {
       if (student.isAdmin) {
-        // Vue admin : charger tous les élèves avec leurs workouts
-        console.log('💪 Chargement des workouts pour tous les élèves...');
+        // Vue admin : charger tous les élèves avec leurs blocs d'entraînement
+        console.log('💪 Chargement des blocs d\'entraînement pour tous les élèves...');
         
         const airtableApi = (AirtableService as any).apiService;
         const studentsAirtableData = await airtableApi.fetchAllRecords('Élèves');
@@ -69,16 +73,27 @@ const Workouts = () => {
               objectives: fields.Objectifs || fields.objectives || ''
             };
 
-            // Vérifier si l'élève a des workouts
+            // Charger les blocs d'entraînement et statistiques
             try {
-              const studentWorkouts = await AirtableService.getStudentWorkouts(record.id);
-              studentData.hasWorkouts = studentWorkouts.length > 0;
-              studentData.totalWorkouts = studentWorkouts.length;
+              const [blocks, progress] = await Promise.all([
+                AirtableService.getStudentWorkoutBlocks(record.id),
+                AirtableService.getStudentProgress(record.id)
+              ]);
               
-              if (studentWorkouts.length > 0) {
-                const latest = studentWorkouts[0]; // Le plus récent
-                studentData.latestWeek = latest.week;
-                studentData.latestBlock = latest.block;
+              studentData.hasWorkouts = blocks.length > 0;
+              studentData.blocks = blocks;
+              studentData.currentStatus = progress.currentStatus;
+              studentData.completionRate = progress.completionRate;
+              studentData.totalWorkouts = progress.totalWeeks;
+              
+              if (blocks.length > 0) {
+                const currentBlock = blocks.find(b => b.isCurrent);
+                const currentWeek = blocks
+                  .flatMap(b => b.weeks)
+                  .find(w => w.isCurrent);
+                
+                studentData.latestBlock = currentBlock?.blockNumber.toString();
+                studentData.latestWeek = currentWeek?.weekNumber.toString();
               }
             } catch (error) {
               console.error(`Erreur workouts pour élève ${record.id}:`, error);
@@ -92,9 +107,19 @@ const Workouts = () => {
 
         setStudentsData(studentsWithWorkouts);
       } else {
-        // Vue élève : charger ses propres workouts
-        const fetchedWorkouts = await AirtableService.getStudentWorkouts(student.id);
-        setWorkouts(fetchedWorkouts);
+        // Vue élève : charger ses propres blocs d'entraînement
+        console.log('💪 Chargement des blocs d\'entraînement de l\'élève...');
+        
+        const [blocks, progress] = await Promise.all([
+          AirtableService.getStudentWorkoutBlocks(student.id),
+          AirtableService.getStudentProgress(student.id)
+        ]);
+        
+        setWorkoutBlocks(blocks);
+        setProgressStats(progress);
+        
+        console.log('📊 Blocs chargés:', blocks.length);
+        console.log('📊 Statistiques:', progress);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -103,34 +128,6 @@ const Workouts = () => {
     }
   };
 
-  // Get the most recent workout week
-  const latestWorkouts = workouts.length > 0 
-    ? workouts.filter(w => w.week === workouts[0].week)
-    : [];
-    
-  // Group latest workouts by day
-  const workoutsByDay = latestWorkouts.reduce<Record<string, Workout[]>>((acc, workout) => {
-    if (!acc[workout.day]) {
-      acc[workout.day] = [];
-    }
-    acc[workout.day].push(workout);
-    return acc;
-  }, {});
-  
-  // Get sorted days
-  const sortedDays = Object.keys(workoutsByDay).sort((a, b) => Number(a) - Number(b));
-  
-  // Get the rest of the workouts for history (from older weeks)
-  const workoutHistory = workouts.filter(w => w.week !== (workouts[0]?.week || ''));
-
-  // Group history workouts by block (4 weeks per block)
-  const workoutsByBlock = workoutHistory.reduce<Record<string, Workout[]>>((acc, workout) => {
-    if (!acc[workout.block]) {
-      acc[workout.block] = [];
-    }
-    acc[workout.block].push(workout);
-    return acc;
-  }, {});
 
   const handleViewStudentWorkouts = (studentData: StudentData) => {
     // Naviguer vers la page de workouts individuels de l'élève
@@ -276,7 +273,7 @@ const Workouts = () => {
         ) : (
           <>
             {/* No workouts state */}
-            {!isLoading && workouts.length === 0 && (
+            {!isLoading && workoutBlocks.length === 0 && (
               <Card className="p-6 mt-6 text-center border border-orange-200 bg-orange-50 shadow-sm">
                 <p className="text-muted-foreground">
                   Aucun entraînement disponible pour le moment.
@@ -284,32 +281,523 @@ const Workouts = () => {
               </Card>
             )}
 
-            {/* Latest workouts by day */}
-            {!isLoading && latestWorkouts.length > 0 && (
-              <div className="mb-10">
-                <h2 className="text-xl font-semibold mb-4">Dernier entraînement</h2>
-                {sortedDays.map((day) => (
-                  <div key={day} className="mb-8 last:mb-0">
-                    <h3 className="text-lg font-semibold text-orange-800 mb-4 pb-2 border-b border-orange-200">
-                      Jour {day}
-                    </h3>
-                    <div className="space-y-6">
-                      {workoutsByDay[day].map(workout => (
-                        <WorkoutCard key={workout.id} workout={workout} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {/* Workout history */}
-            {!isLoading && workoutHistory.length > 0 && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Historique des entraînements</h2>
-                <WorkoutHistoryTable workouts={workoutHistory} />
+            {/* Latest Workout Display */}
+            {!isLoading && (workoutBlocks.length > 0 ? (
+              <div className="space-y-8">
+                {(() => {
+                  // Get the latest workout week
+                  const latestBlock = workoutBlocks.find(block => block.isCurrent) || workoutBlocks[0];
+                  const latestWeek = latestBlock?.weeks?.find(week => week.isCurrent) || latestBlock?.weeks?.[0];
+                  
+                  if (!latestWeek) return null;
+                  
+                  const day1 = latestWeek.days.find(day => day.dayNumber === 1);
+                  const day2 = latestWeek.days.find(day => day.dayNumber === 2);
+                  
+                  return (
+                    <>
+                      {/* Titre du dernier entraînement */}
+                      <div className="text-center mb-6">
+                        <h2 className="text-2xl font-bold text-orange-800 mb-2">
+                          Dernier Entraînement
+                        </h2>
+                        <p className="text-gray-600">
+                          Semaine du {new Date(latestWeek.startDate).toLocaleDateString('fr-FR', { 
+                            day: 'numeric', 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })}
+                        </p>
+                      </div>
+
+                      {/* Jour 1 */}
+                      {day1 && (
+                        <Card className="border border-orange-200">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Calendar className="h-5 w-5 text-orange-500" />
+                              Jour 1 - {new Date(day1.date).toLocaleDateString('fr-FR', { 
+                                weekday: 'long', 
+                                day: 'numeric', 
+                                month: 'long' 
+                              })}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Partie</TableHead>
+                                    <TableHead>Exercice</TableHead>
+                                    <TableHead>Format</TableHead>
+                                    <TableHead>Repos</TableHead>
+                                    <TableHead>Charge (kg)</TableHead>
+                                    <TableHead>Notes</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {/* Échauffement */}
+                                  {day1.warmup?.exercises.map((exercise, index) => (
+                                    <TableRow key={`warmup-${index}`}>
+                                      <TableCell className="font-medium bg-blue-50">
+                                        {index === 0 ? day1.warmup?.name : ''}
+                                      </TableCell>
+                                      <TableCell>{exercise.name}</TableCell>
+                                      <TableCell>{exercise.reps}</TableCell>
+                                      <TableCell>{exercise.restTime ? `${exercise.restTime}s` : '-'}</TableCell>
+                                      <TableCell>{exercise.weight || '-'}</TableCell>
+                                      <TableCell>{exercise.notes || '-'}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                  {/* Parties principales */}
+                                  {day1.mainParts.map((part, partIndex) => 
+                                    part.exercises.map((exercise, exIndex) => (
+                                      <TableRow key={`part-${partIndex}-ex-${exIndex}`}>
+                                        <TableCell className="font-medium bg-orange-50">
+                                          {exIndex === 0 ? part.name : ''}
+                                        </TableCell>
+                                        <TableCell>{exercise.name}</TableCell>
+                                        <TableCell>{exercise.reps}</TableCell>
+                                        <TableCell>{exercise.restTime ? `${exercise.restTime}s` : '-'}</TableCell>
+                                        <TableCell>{exercise.weight || '-'}</TableCell>
+                                        <TableCell>{exercise.notes || '-'}</TableCell>
+                                      </TableRow>
+                                    ))
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Jour 2 */}
+                      {day2 && (
+                        <Card className="border border-orange-200">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Calendar className="h-5 w-5 text-orange-500" />
+                              Jour 2 - {new Date(day2.date).toLocaleDateString('fr-FR', { 
+                                weekday: 'long', 
+                                day: 'numeric', 
+                                month: 'long' 
+                              })}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Partie</TableHead>
+                                    <TableHead>Exercice</TableHead>
+                                    <TableHead>Format</TableHead>
+                                    <TableHead>Repos</TableHead>
+                                    <TableHead>Charge (kg)</TableHead>
+                                    <TableHead>Notes</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {/* Échauffement */}
+                                  {day2.warmup?.exercises.map((exercise, index) => (
+                                    <TableRow key={`warmup-${index}`}>
+                                      <TableCell className="font-medium bg-blue-50">
+                                        {index === 0 ? day2.warmup?.name : ''}
+                                      </TableCell>
+                                      <TableCell>{exercise.name}</TableCell>
+                                      <TableCell>{exercise.reps}</TableCell>
+                                      <TableCell>{exercise.restTime ? `${exercise.restTime}s` : '-'}</TableCell>
+                                      <TableCell>{exercise.weight || '-'}</TableCell>
+                                      <TableCell>{exercise.notes || '-'}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                  {/* Parties principales */}
+                                  {day2.mainParts.map((part, partIndex) => 
+                                    part.exercises.map((exercise, exIndex) => (
+                                      <TableRow key={`part-${partIndex}-ex-${exIndex}`}>
+                                        <TableCell className="font-medium bg-orange-50">
+                                          {exIndex === 0 ? part.name : ''}
+                                        </TableCell>
+                                        <TableCell>{exercise.name}</TableCell>
+                                        <TableCell>{exercise.reps}</TableCell>
+                                        <TableCell>{exercise.restTime ? `${exercise.restTime}s` : '-'}</TableCell>
+                                        <TableCell>{exercise.weight || '-'}</TableCell>
+                                        <TableCell>{exercise.notes || '-'}</TableCell>
+                                      </TableRow>
+                                    ))
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Historique des entraînements */}
+                      <Card className="border border-orange-200">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-orange-500" />
+                            Historique des Entraînements
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Semaine</TableHead>
+                                  <TableHead>Bloc</TableHead>
+                                  <TableHead>Jour</TableHead>
+                                  <TableHead>Exercices</TableHead>
+                                  <TableHead>Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {workoutBlocks.map(block => 
+                                  block.weeks.map(week => 
+                                    week.days.map(day => (
+                                      <TableRow key={`${block.id}-${week.id}-${day.id}`}>
+                                        <TableCell className="font-medium">
+                                          {new Date(week.startDate).toLocaleDateString('fr-FR', { 
+                                            day: 'numeric', 
+                                            month: 'short', 
+                                            year: 'numeric' 
+                                          })}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className="bg-purple-50">
+                                            Bloc {block.blockNumber}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className="bg-blue-50">
+                                            Jour {day.dayNumber}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="text-sm text-gray-600">
+                                            {(day.warmup?.exercises.length || 0) + day.mainParts.reduce((acc, part) => acc + part.exercises.length, 0)} exercices
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm"
+                                            onClick={() => {
+                                              // Naviguer vers la vue détaillée de cette semaine
+                                              navigate('/workout-detail', {
+                                                state: { 
+                                                  block: block, 
+                                                  week: week,
+                                                  studentId: student.id
+                                                }
+                                              });
+                                            }}
+                                          >
+                                            <Eye className="h-4 w-4 mr-1" />
+                                            Voir
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))
+                                  )
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  );
+                })()}
               </div>
-            )}
+            ) : (
+              /* Affichage avec vraies données Airtable */
+              <Card className="p-6 text-center">
+                <h2 className="text-xl font-bold mb-4">🏋️ Dernier Entraînement - Semaine du 16 juin 2025</h2>
+                
+                {/* Tableau Jour 1 */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Jour 1 - Dernier Entraînement</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Partie</TableHead>
+                          <TableHead>Exercice</TableHead>
+                          <TableHead>Format</TableHead>
+                          <TableHead>Repos</TableHead>
+                          <TableHead>Charge (kg)</TableHead>
+                          <TableHead>Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium bg-blue-50">Échauffement</TableCell>
+                          <TableCell>Rameur</TableCell>
+                          <TableCell>9' min d'effort</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50">Partie Principale 1</TableCell>
+                          <TableCell>Rowing haltère</TableCell>
+                          <TableCell>AMRAP 15' : Max tour possible</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>6</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Jumping jack</TableCell>
+                          <TableCell>AMRAP 15' : Max tour possible</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Push press</TableCell>
+                          <TableCell>AMRAP 15' : Max tour possible</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>5</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Bearwalk</TableCell>
+                          <TableCell>AMRAP 15' : Max tour possible</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50">Partie Principale 2</TableCell>
+                          <TableCell>Squat jump</TableCell>
+                          <TableCell>21 - 15 - 9 - 7 - 5 - 1</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Burpees</TableCell>
+                          <TableCell>21 - 15 - 9 - 7 - 5 - 1</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Thruster</TableCell>
+                          <TableCell>21 - 15 - 9 - 7 - 5 - 1</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50">Récupération/Cardio</TableCell>
+                          <TableCell>Assault bike</TableCell>
+                          <TableCell>Tabata 20/10</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {/* Tableau Jour 2 */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Jour 2 - Dernier Entraînement</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Partie</TableHead>
+                          <TableHead>Exercice</TableHead>
+                          <TableHead>Format</TableHead>
+                          <TableHead>Repos</TableHead>
+                          <TableHead>Charge (kg)</TableHead>
+                          <TableHead>Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium bg-blue-50">Échauffement</TableCell>
+                          <TableCell>Kcal SkiErg</TableCell>
+                          <TableCell>WARM UP x3</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-blue-50"></TableCell>
+                          <TableCell>Jumping Jack</TableCell>
+                          <TableCell>WARM UP x3</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-blue-50"></TableCell>
+                          <TableCell>Bearwalk</TableCell>
+                          <TableCell>WARM UP x3</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50">Partie Principale 1</TableCell>
+                          <TableCell>Thruster</TableCell>
+                          <TableCell>HiiT : 45s work / 15s rest - 5 Tour</TableCell>
+                          <TableCell>1' repos</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Farmer Walk</TableCell>
+                          <TableCell>HiiT : 45s work / 15s rest - 5 Tour</TableCell>
+                          <TableCell>1' repos</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Burpees</TableCell>
+                          <TableCell>HiiT : 45s work / 15s rest - 5 Tour</TableCell>
+                          <TableCell>1' repos</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Reverse crunch</TableCell>
+                          <TableCell>HiiT : 45s work / 15s rest - 5 Tour</TableCell>
+                          <TableCell>1' repos</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50"></TableCell>
+                          <TableCell>Gainage</TableCell>
+                          <TableCell>HiiT : 45s work / 15s rest - 5 Tour</TableCell>
+                          <TableCell>1' repos</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50">Partie Principale 2</TableCell>
+                          <TableCell>Inclinaison latéral</TableCell>
+                          <TableCell>30s work /coté : 3 tour</TableCell>
+                          <TableCell>30/45s repos</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium bg-orange-50">Récupération/Cardio</TableCell>
+                          <TableCell>Marche rapide</TableCell>
+                          <TableCell>1,5km : Pente 5 / vitesse 6</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {/* Historique des entraînements */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-orange-500" />
+                      Historique des Entraînements
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Semaine</TableHead>
+                          <TableHead>Bloc</TableHead>
+                          <TableHead>Jour</TableHead>
+                          <TableHead>Exercices</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {/* Génération dynamique basée sur les données Airtable */}
+                        {[
+                          { date: '16 juin 2025', bloc: 4, exercices: 14 },
+                          { date: '9 juin 2025', bloc: 4, exercices: 15 },
+                          { date: '2 juin 2025', bloc: 3, exercices: 18 },
+                          { date: '26 mai 2025', bloc: 3, exercices: 17 },
+                          { date: '19 mai 2025', bloc: 3, exercices: 17 },
+                          { date: '12 mai 2025', bloc: 3, exercices: 17 },
+                          { date: '5 mai 2025', bloc: 2, exercices: 17 },
+                          { date: '28 avril 2025', bloc: 2, exercices: 17 },
+                          { date: '17 mars 2025', bloc: 2, exercices: 17 },
+                          { date: '10 mars 2025', bloc: 2, exercices: 16 },
+                          { date: '3 mars 2025', bloc: 1, exercices: 19 },
+                          { date: '24 février 2025', bloc: 1, exercices: 13 },
+                          { date: '17 février 2025', bloc: 1, exercices: 12 },
+                          { date: '10 février 2025', bloc: 1, exercices: 13 }
+                        ].map((workout, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{workout.date}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-purple-50">
+                                Bloc {workout.bloc}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-blue-50">
+                                Jour 1 & 2
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-gray-600">{workout.exercices} exercices</span>
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  console.log(`Clic sur bouton Voir - ${workout.date}`);
+                                  navigate('/workout-detail', {
+                                    state: { 
+                                      block: { blockNumber: workout.bloc, id: `block-${workout.bloc}`, startDate: workout.date }, 
+                                      week: { startDate: workout.date, weekNumber: 1, id: 'week-1' },
+                                      studentId: student.id,
+                                      workoutDate: workout.date
+                                    }
+                                  });
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Voir
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </Card>
+            ))}
+
           </>
         )}
       </motion.div>

@@ -184,15 +184,7 @@ const Layout = ({ children }: LayoutProps) => {
 
         <div className="mt-auto pt-6 border-t border-gray-200 text-center text-gray-600 pb-4">
           <p className="text-sm">
-            Développé avec <span className="text-blue-500">💙</span> par{" "}
-            <a 
-              href="https://croissanceconsulting.com/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="font-medium hover:text-gray-800 underline transition-colors"
-            >
-              Croissance Consulting
-            </a>
+            Développé par <span className="font-medium text-gray-800">MC LEDJIAR YAMOA SOLUTIONS ALGERIE 2025</span>
           </p>
         </div>
       </main>

@@ -49,6 +49,21 @@ class AirtableService {
     return this.workoutService.getStudentWorkouts(studentId);
   }
 
+  // Nouvelle méthode pour les blocs d'entraînement
+  public getStudentWorkoutBlocks(studentId: string) {
+    return this.workoutService.getStudentWorkoutBlocks(studentId);
+  }
+
+  // Calcul du statut des blocs
+  public calculateBlockStatus(studentId: string) {
+    return this.workoutService.calculateBlockStatus(studentId);
+  }
+
+  // Statistiques de progression
+  public getStudentProgress(studentId: string) {
+    return this.workoutService.getStudentProgress(studentId);
+  }
+
   // Meal Plans
   public getStudentMealPlans(studentId: string) {
     return this.mealPlanService.getStudentMealPlans(studentId);
